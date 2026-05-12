@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<!-- ============================================
+     MINDSET PROFILE — HTML PARA HOSPEDAR
+     Cole este arquivo como index.html no Render
+     ============================================ -->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mindset Profile — Avaliação Comportamental</title>
+<meta name="description" content="Avaliação comportamental integrativa baseada em tipologia psicológica, genética e neurociência.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #FAF8F5; }
+  .font-serif { font-family: 'Lora', Georgia, 'Times New Roman', serif !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .animate-spin { animation: spin 1s linear infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbyyqQOBmPF_a05OZiFNXPwer1zHwzaIX8TtOrgD0X9Ph3wHncokm1JOpCg70Mb2x_Hb/exec';
+
+// ===== ICONS (SVG inline, sem dependência externa) =====
+const Icon = ({ d, className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {d}
+  </svg>
+);
+const ChevronLeft = (p) => <Icon className={p.className} d={<path d="m15 18-6-6 6-6"/>} />;
+const RotateCcw = (p) => <Icon className={p.className} d={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>} />;
+const ExternalLink = (p) => <Icon className={p.className} d={<><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></>} />;
+const Loader2 = (p) => <Icon className={p.className} d={<path d="M21 12a9 9 0 1 1-6.219-8.56"/>} />;
+const CheckCircle2 = (p) => <Icon className={p.className} d={<><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>} />;
+
+// ===== LOGO =====
+const LogoDW = ({ size = 'md' }) => {
+  const sizes = { sm: { fontSize: '1.5rem', letterSpacing: '-0.05em' }, md: { fontSize: '2.5rem', letterSpacing: '-0.05em' }, lg: { fontSize: '5rem', letterSpacing: '-0.06em' } };
+  const s = sizes[size];
+  return (
+    <div className="font-serif font-bold leading-none inline-block" style={{ fontSize: s.fontSize, letterSpacing: s.letterSpacing, background: 'linear-gradient(135deg, #292524 0%, #78350F 35%, #D97706 50%, #78350F 65%, #292524 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+      DW
+    </div>
+  );
+};
+
+const ARCHETYPES = {
+  P: { key: 'P', name: 'Pavão', color: '#4C1D95', colorAccent: '#7C3AED', colorBg: '#F5F3FF', tagline: 'O Visionário Criativo', essence: 'Criatividade, sociabilidade e busca incessante por novidade.', biology: 'Predominância dopaminérgica, com expressão dos genes DRD4-7R (busca por novidade) e GRIN2B (flexibilidade cognitiva). É o perfil mais associado à criatividade divergente e ao pensamento inovador.' },
+  L: { key: 'L', name: 'Leão', color: '#7F1D1D', colorAccent: '#B91C1C', colorBg: '#FEF2F2', tagline: 'O Líder Conquistador', essence: 'Dominância, assertividade e foco implacável em resultados.', biology: 'Predominância de testosterona, dopamina e norepinefrina, com expressão de genes como MAOA e DRD3, que regulam motivação por recompensa, controle de impulso e drive competitivo.' },
+  C: { key: 'C', name: 'Cachorro', color: '#1E3A8A', colorAccent: '#2563EB', colorBg: '#EFF6FF', tagline: 'O Leal Empático', essence: 'Lealdade, empatia e construção de vínculos profundos.', biology: 'Predominância de oxitocina (vínculo), serotonina (estabilidade emocional) e vasopressina (lealdade), com expressão dos genes OXTR e 5-HTTLPR. É o perfil com maior sensibilidade socioemocional.' },
+  M: { key: 'M', name: 'Macaco', color: '#14532D', colorAccent: '#15803D', colorBg: '#F0FDF4', tagline: 'O Analista Estruturado', essence: 'Análise profunda, organização e domínio dos detalhes.', biology: 'Equilíbrio entre serotonina e dopamina regulada, com forte atuação do sistema GABAérgico (controle inibitório). Genes como GABRG2, FOXP2 e HTR2A estão associados à organização cognitiva e ao pensamento estruturado.' }
+};
+
+const N = {
+  P: {
+    opening: { extreme: 'Você é um Pavão em estado quase puro. A criatividade e a busca por novidade não são uma faceta sua — são a essência através da qual você lê o mundo. Onde outros veem estabilidade, você sente tédio; onde outros sentem ameaça, você fareja oportunidade.', strong: 'O Pavão fala alto em você. Sua mente está sempre dois passos à frente, antecipando o próximo movimento, conectando ideias que ninguém mais conectaria. A criatividade é seu motor principal de funcionamento.', moderate: 'O Pavão é seu arquétipo predominante, mas com volume modulado. Você é criativo e busca novidade, sim — mas consegue se sentar com o tédio ocasional sem sofrer demais. Sua inovação tem um traço de pé no chão.', balanced: 'Você tem o Pavão como ponto de partida, mas seu perfil é genuinamente equilibrado. Acessa criatividade quando precisa, mas não é refém dela. Essa mistura te dá versatilidade rara.' },
+    balanced_state: { extreme: 'Em equilíbrio, você é a pessoa que muda o jogo. Você enxerga padrões que outros não veem, propõe caminhos que parecem impossíveis até virarem óbvios, e contagia ambientes com energia e visão. Seu valor está em ser o catalisador — aquele que destrava possibilidades e amplia horizontes para quem está à sua volta.', strong: 'Em equilíbrio, você inova com método. Suas ideias têm peso porque vêm acompanhadas de capacidade de articulação social. Você inspira, engaja e move pessoas com facilidade incomum.', moderate: 'Em equilíbrio, você traz frescor sem perder direção. É a pessoa que oxigena projetos engessados sem desorganizá-los — uma mistura valiosa em ambientes que precisam evoluir sem quebrar.', balanced: 'Em equilíbrio, sua criatividade aparece como tempero, não como prato principal. Você sabe a hora de inovar e a hora de executar, alternando registros com consciência.' },
+    shadow: { extreme: 'Fora de eixo, sua versatilidade vira dispersão crônica. Você começa muitos projetos e termina poucos. A novidade do mês ofusca o compromisso da semana passada. Pessoas próximas começam a desconfiar dos seus entusiasmos porque já viram o filme antes. E o pior: o vácuo do tédio te leva a criar caos só para sentir que algo está acontecendo.', strong: 'Quando o eixo se perde, você muda de direção rápido demais. O entusiasmo inicial é genuíno, mas a entrega final fica em dívida. Você precisa aprender que terminar é tão criativo quanto começar.', moderate: 'Em momentos de desequilíbrio, você se dispersa em frentes demais. A intensidade não é destrutiva, mas atrasa as suas próprias metas.', balanced: 'Sua sombra Pavão aparece em momentos pontuais, geralmente quando você está sobrecarregado e busca uma "fuga criativa". É um sinal, não um padrão estrutural.' },
+    regulation: { extreme: 'A regulação consciente é vital para você. Você precisa de sistemas externos fortes — agenda inegociável, prazos públicos, parcerias com perfis Macaco que te ancorem. Aprenda que disciplina não mata sua criatividade, ela a torna entregável. Compromissos firmes não são prisão: são a infraestrutura que faz seu talento chegar ao mundo.', strong: 'Crie rituais externos de fechamento. Antes de começar algo novo, force-se a entregar o anterior. Considere ter ao seu lado alguém estruturado que cobre execução sem precisar dar bronca.', moderate: 'Pequenos ajustes te servem: agenda diária com um foco principal, regra do "não começa o terceiro projeto antes de terminar um dos dois em curso", e um momento semanal de revisão.', balanced: 'Sua regulação já acontece de forma natural na maior parte do tempo. Mantenha-se atento aos sinais de dispersão quando estiver entediado.' }
+  },
+  L: {
+    opening: { extreme: 'Você é um Leão em estado bruto. A dominância não é um papel que você desempenha — é a forma como seu sistema nervoso processa o mundo. Decidir é mais fácil do que esperar. Liderar é mais natural do que seguir. E perder dói de um jeito que muita gente não compreende.', strong: 'O Leão fala alto em você. Você decide enquanto outros ainda estão considerando opções. Sua presença muda o clima de uma sala, mesmo quando você não está tentando. Foco em resultado é seu padrão de fábrica.', moderate: 'Você é predominantemente Leão, mas com matizes que suavizam a força bruta. Sua liderança é mais consciente, menos automática — você usa o modo Leão quando o momento exige, mas consegue baixar a guarda quando o contexto pede outra coisa.', balanced: 'O Leão aparece em você em momentos-chave, mas não dita todo o seu jogo. Você acessa coragem de líder quando precisa, sem que isso defina a totalidade de quem você é.' },
+    balanced_state: { extreme: 'Em equilíbrio, você é a pessoa que move o mundo. Você inicia o que outros adiam, decide o que outros terceirizam, e protege quem está sob sua liderança com fidelidade ferrenha. Seu valor está em ser o catalisador da ação — aquele que transforma intenção em movimento real, mesmo quando ninguém mais tem coragem de dar o primeiro passo.', strong: 'Em equilíbrio, você lidera com clareza e proteção. Sua decisão direta libera as pessoas para executarem sem ambiguidade. Você cria contextos em que coisas grandes acontecem.', moderate: 'Em equilíbrio, você é alguém em quem se pode contar para puxar a fila. Não é o Leão que ruge sempre — é o que ruge quando precisa, e isso te dá credibilidade extra.', balanced: 'Em equilíbrio, sua dominância aparece com elegância: você toma o lugar de líder quando o vácuo se forma, sem precisar disputar o espaço.' },
+    shadow: { extreme: 'Fora de eixo, sua força vira atropelamento. Você decide por todos sem perceber que esmagou as contribuições alheias. Sua impaciência custa caro: aliados se afastam, equipe vira execução muda, pessoas próximas guardam ressentimentos que você nem suspeita. E o pior: você confunde lealdade com submissão, e julga as pessoas pela velocidade delas em vez da profundidade.', strong: 'Quando o eixo se perde, a urgência te trai. Você corta conversas que precisariam de espaço, decide rápido demais sobre temas que pediam reflexão, e deixa rastros emocionais que depois precisam ser reparados.', moderate: 'Sua sombra Leão aparece em momentos de pressão: você fica seco, monossilábico, e parece mais duro do que está realmente sendo. As pessoas que te conhecem aprendem a ler, mas isso custa energia delas.', balanced: 'Sua sombra Leão é episódica — geralmente quando você está cansado ou foi pressionado a esperar demais. Identificar o gatilho neutraliza a maior parte do problema.' },
+    regulation: { extreme: 'A regulação consciente é o seu maior salto possível. Você precisa praticar o oposto da sua tendência: escutar antes de responder, fazer pausa antes de decidir, perguntar antes de declarar. Isso vai parecer contraintuitivo — e é exatamente esse desconforto que aumenta seu repertório de liderança. Líderes Leão regulados são raríssimos, e por isso valiosíssimos: têm a coragem do Leão somada à inteligência relacional que normalmente falta ao perfil.', strong: 'Pratique escuta ativa de forma deliberada: antes de tomar decisões que envolvem outros, pergunte e ouça por dois minutos sem interromper. Você vai descobrir informações que mudam decisões.', moderate: 'Sua regulação acontece naturalmente, mas pode ser turbinada com pequenos rituais: respiração antes de reuniões tensas, contagem mental antes de respostas duras, espaço deliberado para o outro falar.', balanced: 'Você já regula bem. O ponto de atenção é não negligenciar a força Leão quando ela for útil — equilíbrio não é mediocridade, é capacidade de acessar a força certa no momento certo.' }
+  },
+  C: {
+    opening: { extreme: 'Você é um Cachorro em sua versão mais íntegra. A empatia não é uma estratégia social que você aplica — é o canal natural pelo qual você lê o mundo. Você sente o estado emocional de uma sala antes mesmo de alguém falar. Lealdade, para você, é um valor sagrado, não negociável.', strong: 'O Cachorro fala alto em você. Pessoas se sentem seguras na sua presença porque você é genuinamente confiável. A leitura emocional vem antes da racional, e isso te dá uma sensibilidade que muita gente não tem.', moderate: 'Você é predominantemente Cachorro, mas com modulação saudável. Sua empatia é real, mas não te paralisa. Você consegue ser leal sem se anular, cuidar sem se exaurir.', balanced: 'O Cachorro aparece em você como base relacional, mas não como única referência. Você cuida e se conecta, mas mantém centro próprio — uma combinação valiosa que muita gente busca a vida inteira.' },
+    balanced_state: { extreme: 'Em equilíbrio, você é o tecido que mantém grupos unidos. Pessoas confiam em você antes mesmo de te conhecer profundamente — sua presença comunica segurança. Você cria os vínculos que sustentam famílias, equipes e amizades de longo prazo. Seu valor está em ser a constância afetiva — aquele em quem se pode contar quando tudo o resto está oscilando.', strong: 'Em equilíbrio, você sustenta com presença. Sua empatia não é apenas reativa — ela antecipa, cuida, prepara o terreno. Líderes Cachorro equilibrados criam culturas humanas profundas.', moderate: 'Em equilíbrio, você equilibra cuidado e firmeza. Sabe se importar sem se perder, sabe ouvir sem deixar de ter posição.', balanced: 'Em equilíbrio, seu cuidado aparece de forma seletiva e potente — você se entrega para quem importa, e isso protege sua energia.' },
+    shadow: { extreme: 'Fora de eixo, sua empatia vira armadilha. Você diz "sim" quando o corpo grita "não". Você adia decisões importantes para evitar magoar alguém. Você se anula em relações que não te retribuem, e depois reclama em silêncio. O pior é que você acaba ressentindo as pessoas exatamente por aquilo que você mesmo concedeu — você se sacrifica e cobra um reconhecimento que nunca pediu explicitamente.', strong: 'Quando o eixo se perde, você posterga conflitos que precisariam ser enfrentados. A harmonia superficial te custa autenticidade. Você sai de situações exausto, sem entender exatamente por quê.', moderate: 'Sua sombra Cachorro aparece em situações em que você se sente responsável pelo bem-estar emocional do outro. Você assume cargas que não te pertencem.', balanced: 'Sua sombra Cachorro é pontual: aparece em momentos em que valores afetivos te puxam para uma decisão que sua razão recusaria. Identificar isso já desativa boa parte do problema.' },
+    regulation: { extreme: 'A regulação consciente é uma questão de sobrevivência emocional para você. Você precisa praticar o "não" como um ato de cuidado — inclusive consigo. Não é trair quem te ama; é honrar quem você é. Estabeleça limites antes de a relação começar, não depois. E lembre: você não é responsável por gerenciar os sentimentos alheios. Seu eixo vai se firmar quando você compreender que assertividade e bondade não são opostos, são aliados.', strong: 'Pratique dizer "não" em situações de baixo risco para treinar o músculo. Mapeie as pessoas e situações em que você costuma se anular — esses são seus pontos de atenção principais.', moderate: 'Sua regulação vai bem na maior parte do tempo. Apenas atenção aos momentos em que culpa antecipada te empurra para concessões desnecessárias.', balanced: 'Você já regula com naturalidade. Mantenha a consciência sobre quando o cuidado vira sacrifício desnecessário.' }
+  },
+  M: {
+    opening: { extreme: 'Você é um Macaco em sua expressão mais pura. A organização não é uma técnica que você aplica — é o filtro natural pelo qual você processa o mundo. Onde outros veem complexidade, você vê padrão. Onde outros se contentam com "está bom", você vê o que falta refinar.', strong: 'O Macaco fala alto em você. Sua mente busca estrutura, profundidade e coerência antes de qualquer ação. Você é a pessoa que outros procuram quando precisam de análise séria e bem fundamentada.', moderate: 'Você é predominantemente Macaco, mas com flexibilidade saudável. Sua análise é profunda, mas você consegue agir mesmo com informação incompleta quando necessário.', balanced: 'O Macaco aparece em você como rigor de base, mas não como prisão. Você sabe analisar sem se perder em loops, planejar sem paralisar a ação.' },
+    balanced_state: { extreme: 'Em equilíbrio, você é a fundação. Você antecipa erros que ninguém mais vê, constrói sistemas que sustentam crescimento, e produz com qualidade que vira referência. Pessoas próximas aprendem a confiar nos seus julgamentos porque você raramente erra por desatenção. Seu valor está em ser o garantidor da qualidade — aquele que faz a diferença entre algo que funciona e algo que funciona com excelência.', strong: 'Em equilíbrio, você combina rigor com pragmatismo. Sua atenção a detalhes não é obsessão, é cuidado profissional. Profissionais Macaco equilibrados costumam ser indispensáveis nos seus contextos.', moderate: 'Em equilíbrio, você equilibra análise e ação. Pensa antes, mas não para sempre. Esse meio-termo é raro e valioso.', balanced: 'Em equilíbrio, sua rigorosidade aparece nos momentos certos: quando o custo de errar é alto. Para o resto, você flui.' },
+    shadow: { extreme: 'Fora de eixo, sua busca por perfeição te paralisa. Você adia decisões esperando informação que nunca virá. Você revisa o mesmo trabalho cinco vezes quando duas seriam suficientes. Sua ansiedade frente a mudanças te faz resistir a coisas que deveriam ser bem-vindas. E o pior: você projeta seus padrões nos outros, e fica em silêncio frustrado com pessoas que entregam "bom o suficiente" — sem perceber que muitas vezes "bom o suficiente" é exatamente o que era pedido.', strong: 'Quando o eixo se perde, você analisa demais. Toda informação adicional adia o momento da decisão. Você se sente seguro no planejamento e desconfortável na execução.', moderate: 'Sua sombra Macaco aparece em projetos com alta incerteza. Você quer mais dados, mais clareza, mais garantias — e o relógio segue correndo.', balanced: 'Sua sombra Macaco é situacional: aparece quando o custo emocional de errar é alto. Identificar o gatilho já te ajuda a sair do loop.' },
+    regulation: { extreme: 'A regulação consciente é o seu salto de patamar mais relevante. Você precisa aprender que "feito" muitas vezes vale mais que "perfeito" — não como rendição da qualidade, mas como sabedoria sobre o que o contexto realmente demanda. Treine decisão com informação incompleta. Estabeleça prazos rígidos para a fase de análise e force-se a entrar na execução. Sua excelência só vira impacto quando ela chega ao mundo.', strong: 'Defina prazos para fase de análise — quando o prazo bater, parta para execução mesmo com informação incompleta. Pratique entregar versões "boas o suficiente" para coisas de baixo risco.', moderate: 'Sua regulação acontece naturalmente. Apenas mantenha atenção a momentos em que perfeição vira procrastinação disfarçada.', balanced: 'Você regula bem. O ponto de atenção é não abrir mão da sua rigorosidade em contextos que se beneficiam dela.' }
+  }
+};
+
+const NUANCE = {
+  P_L: 'O Leão aparece como tempero do seu Pavão dominante, dando uma camada de foco e poder de execução que muitos criativos não têm. Sua inovação carrega garra que Pavões puros não conseguem sustentar.',
+  P_C: 'O Cachorro aparece como tempero do seu Pavão dominante, trazendo calor humano à criatividade. Suas ideias quase sempre incluem o impacto sobre as pessoas — você inova sem perder de vista quem está do outro lado.',
+  P_M: 'O Macaco aparece como tempero do seu Pavão dominante, dando substância e profundidade às ideias. Você cria, mas também valida — uma vantagem real sobre Pavões puros que apenas geram.',
+  L_P: 'O Pavão aparece como tempero do seu Leão dominante, trazendo visão e originalidade ao poder executivo. Você não só decide rápido, decide com criatividade.',
+  L_C: 'O Cachorro aparece como tempero do seu Leão dominante, suavizando arestas e trazendo leitura emocional. Você é firme, mas não cego ao que sentem os outros.',
+  L_M: 'O Macaco aparece como tempero do seu Leão dominante, dando método à decisão. Você age com clareza, e o que sustenta a clareza é pensamento estruturado por trás.',
+  C_P: 'O Pavão aparece como tempero do seu Cachorro dominante, trazendo criatividade e abertura à empatia. Suas conexões têm cor — não viram rotina afetiva.',
+  C_L: 'O Leão aparece como tempero do seu Cachorro dominante, dando firmeza ao cuidado. Você cuida sem se anular — sabe a hora de proteger e a hora de pôr limite.',
+  C_M: 'O Macaco aparece como tempero do seu Cachorro dominante, trazendo método ao cuidado. Você cuida com consistência, percebe detalhes que outros não notam, e cria estabilidade afetiva real.',
+  M_P: 'O Pavão aparece como tempero do seu Macaco dominante, dando criatividade à estrutura. Você analisa, mas também inventa — uma combinação rara que evita a rigidez típica do perfil.',
+  M_L: 'O Leão aparece como tempero do seu Macaco dominante, trazendo capacidade de decisão à análise. Você pensa profundo, mas decide quando precisa — não fica eternamente preso em loops.',
+  M_C: 'O Cachorro aparece como tempero do seu Macaco dominante, trazendo sensibilidade ao rigor. Você organiza com cuidado humano, e isso te diferencia de Macacos puros que podem soar técnicos demais.'
+};
+
+const MODULATION = {
+  P_L: 'O Leão tem peso real no seu perfil. Isso modifica o Pavão padrão: sua criatividade não é apenas exploratória, ela tem direção e capacidade de execução. Onde Pavões puros se dispersam, você consegue cravar metas e ir atrás. Atenção: quando o Leão fala mais alto que o Pavão em momentos errados, sua ousadia pode virar arrogância intelectual — você se convence rápido demais das próprias ideias.',
+  P_C: 'O Cachorro tem peso real no seu perfil. Sua criatividade vem ancorada em sensibilidade humana — você inova pensando em pessoas, não apenas em ideias. Isso te dá um diferencial raro: capacidade de conectar inovação com adesão. O risco é o oposto da força: você pode censurar boas ideias por medo do impacto emocional nos outros.',
+  P_M: 'O Macaco tem peso real no seu perfil. A criatividade do Pavão ganha substância: suas ideias não são apenas brilhantes, são testáveis e sustentáveis. Você é o tipo de inovador que pensa em arquitetura, não apenas em conceito. Risco: alternar entre fases de "criar tudo do zero" e "validar tudo até a paralisia" — encontrar o ritmo entre Pavão e Macaco é seu trabalho contínuo.',
+  L_P: 'O Pavão tem peso real no seu perfil. Sua liderança não é apenas firme — é visionária. Você decide com originalidade, não apenas com força. Isso te diferencia de Leões puros que executam bem mas seguem caminhos batidos. Risco: pivotar demais — sua equipe pode ter dificuldade em acompanhar mudanças de direção que você acha óbvias.',
+  L_C: 'O Cachorro tem peso real no seu perfil. Sua dominância é amaciada por capacidade real de leitura emocional. Você lidera firme, mas com afeto verdadeiro — e isso gera lealdade em vez de medo. Risco: tomar partido emocional em situações que pediam neutralidade estratégica, ou demorar a tomar decisões duras quando necessário.',
+  L_M: 'O Macaco tem peso real no seu perfil. Sua decisão tem método por trás: você não é o Leão impulsivo, é o estrategista decidido. Você combina poder de execução com análise profunda — uma vantagem competitiva enorme. Risco: rigidez na execução — você decide com clareza, mas pode ter dificuldade em revisar quando o cenário muda.',
+  C_P: 'O Pavão tem peso real no seu perfil. Sua empatia é criativa: você não apenas escuta, você reinventa formas de se conectar. Isso te dá magnetismo social raro. Risco: superficialidade emocional disfarçada — você se conecta com muitas pessoas, mas pode ter dificuldade em sustentar profundidade nas relações que importam mais.',
+  C_L: 'O Leão tem peso real no seu perfil. Sua lealdade tem garra: você cuida, mas também protege com firmeza. Não é o Cachorro que se anula, é o que estabelece limites para preservar quem ama. Risco: explodir em proteção quando se sente traído — sua firmeza Leão pode passar do ponto.',
+  C_M: 'O Macaco tem peso real no seu perfil. Sua empatia tem método: você cuida com consistência, não por impulso afetivo. Você cria sistemas de cuidado que sustentam relações longas. Risco: cobrar de quem você cuida o mesmo padrão de rigor que você oferece — sua atenção pode virar exigência.',
+  M_P: 'O Pavão tem peso real no seu perfil. Sua análise tem criatividade: você não apenas organiza o existente, você inventa novos sistemas. Isso te diferencia de Macacos puros que otimizam, mas raramente inovam. Risco: alternar entre o desejo de criar do zero e o impulso de sistematizar tudo — sua produtividade vive em ciclos.',
+  M_L: 'O Leão tem peso real no seu perfil. Sua rigorosidade tem capacidade de execução: você analisa, decide e entrega. Não é o Macaco que se perde em loops — é o que combina profundidade com poder de finalização. Risco: dureza com quem entrega abaixo do seu padrão — você pode virar o chefe difícil que cobra demais.',
+  M_C: 'O Cachorro tem peso real no seu perfil. Sua estrutura tem afeto: você organiza com cuidado humano, planeja considerando as pessoas. Isso te diferencia de Macacos puros que podem parecer frios. Risco: assumir cargas emocionais alheias enquanto tenta "manter o sistema funcionando" — você se sobrecarrega cuidando.'
+};
+
+const BLEND = {
+  P_L: 'A combinação Pavão + Leão é potente: visão criativa com coragem de executar. Você não só vê o caminho — você o impõe. Risco: arrogância intelectual e impaciência com quem não acompanha sua velocidade.',
+  P_M: 'A combinação Pavão + Macaco é rara e preciosa: criatividade com profundidade analítica. Você inova com rigor, e seus insights resistem a teste. Risco: ficar entre a vontade de inventar e a necessidade de validar, e não entregar nem uma coisa nem outra.',
+  P_C: 'A combinação Pavão + Cachorro é magnética: criatividade com calor humano. Você conecta pessoas através de ideias, e suas ideias quase sempre incluem o impacto humano. Risco: dispersão afetiva — muitas conexões superficiais em vez de poucas profundas.',
+  L_P: 'A combinação Leão + Pavão é a do líder inovador: você decide rápido e ainda traz visão. Risco: ousadia que vira imprudência, e equipe que não consegue acompanhar seu ritmo de pivotar.',
+  L_M: 'A combinação Leão + Macaco é a do estrategista executor: ação decidida com análise sólida. Você lidera com substância, não apenas com força. Risco: rigidez — você decide com clareza, mas pouco espaço para revisão quando o cenário muda.',
+  L_C: 'A combinação Leão + Cachorro é a do líder protetor: firmeza com lealdade afetiva. Sua equipe te segue não por medo, mas por confiança. Risco: tomar partido emocional em decisões que pediam neutralidade.',
+  M_P: 'A combinação Macaco + Pavão é a do analista criativo: estrutura com originalidade. Você melhora sistemas inventando soluções, não apenas otimizando o existente. Risco: alternar entre fases de hiper-organização e fases de querer reinventar tudo.',
+  M_L: 'A combinação Macaco + Leão é a do executor rigoroso: planejamento detalhado com poder de execução. Você entrega o que promete, no nível que prometeu. Risco: dureza com quem entrega abaixo do seu padrão — você pode se tornar o chefe difícil.',
+  M_C: 'A combinação Macaco + Cachorro é a do profissional confiável: rigor técnico com cuidado humano. Você é a pessoa em quem se confia para tarefas que envolvem outras pessoas. Risco: assumir cargas emocionais alheias para "manter o sistema funcionando".',
+  C_P: 'A combinação Cachorro + Pavão é a do conector inspirador: empatia com criatividade. Você cria espaços onde pessoas se sentem vistas e estimuladas ao mesmo tempo. Risco: superficialidade afetiva — muita ideia, muita conexão, pouca profundidade em cada uma.',
+  C_L: 'A combinação Cachorro + Leão é a do líder amoroso: presença firme com afeto real. Você protege quem ama com intensidade. Risco: explodir em proteção quando alguém ameaça os seus, em vez de responder estrategicamente.',
+  C_M: 'A combinação Cachorro + Macaco é a do cuidador metódico: empatia com organização. Você cuida com método, planeja com afeto. Risco: cobrar de quem você cuida o mesmo padrão de cuidado e rigor que você oferece.'
+};
+
+const QUESTIONS = [
+  { id: 1, prompt: 'Sempre busco ser...', options: [{ text: 'Inovador, criativo e visionário', a: 'P' }, { text: 'Divertido, amigo e benéfico', a: 'C' }, { text: 'Responsável, meticuloso e previsível', a: 'M' }, { text: 'Focado, determinado e persistente', a: 'L' }]},
+  { id: 2, prompt: 'Em uma viagem quero...', options: [{ text: 'Explorar novos lugares', a: 'P' }, { text: 'Conversar com os passageiros', a: 'C' }, { text: 'Planejar a viagem', a: 'M' }, { text: 'Ser o capitão', a: 'L' }]},
+  { id: 3, prompt: 'Se você quiser se dar bem comigo...', options: [{ text: 'Me dê liberdade', a: 'P' }, { text: 'Seja amigável, carinhoso e compreensivo', a: 'C' }, { text: 'Não descumpra o que combinar comigo', a: 'M' }, { text: 'Faça o que eu digo ou saia do caminho', a: 'L' }]},
+  { id: 4, prompt: 'Minha filosofia de vida é...', options: [{ text: 'Para ganhar, tem de inventar novas regras', a: 'P' }, { text: 'Para eu ganhar, ninguém precisa perder', a: 'C' }, { text: 'Para ganhar, tem de seguir as regras', a: 'M' }, { text: 'Há ganhadores e perdedores, e eu acredito ser um ganhador', a: 'L' }]},
+  { id: 5, prompt: 'Não existe nada de errado em...', options: [{ text: 'Mudar de ideia', a: 'P' }, { text: 'Colocar os outros na frente', a: 'C' }, { text: 'Ser consistente', a: 'M' }, { text: 'Se colocar na frente', a: 'L' }]},
+  { id: 6, prompt: 'Eu gosto de chegar...', options: [{ text: 'Em outro lugar', a: 'P' }, { text: 'Junto', a: 'C' }, { text: 'Na hora', a: 'M' }, { text: 'Na frente', a: 'L' }]},
+  { id: 7, prompt: 'Eu gosto de...', options: [{ text: 'Tornar as pessoas desconfortáveis', a: 'P' }, { text: 'Construir memórias', a: 'C' }, { text: 'Fazer sentido', a: 'M' }, { text: 'Fazer progresso', a: 'L' }]},
+  { id: 8, prompt: 'O ditado que mais gosto é...', options: [{ text: 'O que puder sonhar poderá realizar', a: 'P' }, { text: 'Ninguém conquista nada sozinho', a: 'C' }, { text: 'Se for pra fazer mal feito então não faça', a: 'M' }, { text: 'O feito é melhor do que o perfeito', a: 'L' }]},
+  { id: 9, prompt: 'Eu sempre gostei de...', options: [{ text: 'Explorar', a: 'P' }, { text: 'Realizar uma abordagem natural', a: 'C' }, { text: 'Evitar surpresas', a: 'M' }, { text: 'Focalizar a meta', a: 'L' }]},
+  { id: 10, prompt: 'Gosto quando no meu dia...', options: [{ text: 'Aprendo coisas novas', a: 'P' }, { text: 'Me divirto com meus amigos', a: 'C' }, { text: 'Tudo segue conforme planejado', a: 'M' }, { text: 'Consigo fazer muitas coisas', a: 'L' }]},
+  { id: 11, prompt: 'Eu gosto de...', options: [{ text: 'Novidades e de novos projetos', a: 'P' }, { text: 'Calor humano e diversão', a: 'C' }, { text: 'Ordem e sistematização', a: 'M' }, { text: 'Coisas claras e simples', a: 'L' }]},
+  { id: 12, prompt: 'Se me convidar para um passeio…', options: [{ text: 'Que seja para um lugar diferente', a: 'P' }, { text: 'Que seja para um lugar com pessoas legais', a: 'C' }, { text: 'Que seja para onde eu não passe trabalho', a: 'M' }, { text: 'Que seja para aproveitar ao máximo', a: 'L' }]},
+  { id: 13, prompt: 'Eu penso que...', options: [{ text: 'É bom ser manso, mas andar com um porrete', a: 'P' }, { text: 'Unidos venceremos, divididos perderemos', a: 'C' }, { text: 'Um homem prevenido vale por dois', a: 'M' }, { text: 'O ataque é melhor que a defesa', a: 'L' }]},
+  { id: 14, prompt: 'Busco conselhos com...', options: [{ text: 'Qualquer pessoa', a: 'P' }, { text: 'Pessoas de quem eu gosto', a: 'C' }, { text: 'Autoridades no assunto', a: 'M' }, { text: 'Pessoas bem-sucedidas', a: 'L' }]},
+  { id: 15, prompt: 'Quando vou comprar algo sempre…', options: [{ text: 'Analiso diversas possibilidades', a: 'P' }, { text: 'Busco indicação de amigos e familiares', a: 'C' }, { text: 'Analiso cada detalhe antes de escolher', a: 'M' }, { text: 'Escolho rápido e gasto pouco', a: 'L' }]},
+  { id: 16, prompt: 'Bons resultados dependem de...', options: [{ text: 'Inovação', a: 'P' }, { text: 'Pessoas', a: 'C' }, { text: 'Planejar', a: 'M' }, { text: 'Ação', a: 'L' }]},
+  { id: 17, prompt: 'Minha preocupação é...', options: [{ text: 'Gerar ideias novas', a: 'P' }, { text: 'Fazer com que as pessoas gostem', a: 'C' }, { text: 'Fazer com que funcione', a: 'M' }, { text: 'Fazer com que aconteça', a: 'L' }]},
+  { id: 18, prompt: 'Gosto de usar meu tempo para...', options: [{ text: 'Pensar na vida e em novos projetos', a: 'P' }, { text: 'Curtir a família e amigos', a: 'C' }, { text: 'Planejar o que quero fazer', a: 'M' }, { text: 'Realizar tarefas', a: 'L' }]},
+  { id: 19, prompt: 'Eu me divirto quando...', options: [{ text: 'Tenho novidades', a: 'P' }, { text: 'Estou com os outros', a: 'C' }, { text: 'Determino as regras', a: 'M' }, { text: 'Estou me exercitando', a: 'L' }]},
+  { id: 20, prompt: 'Acredito que…', options: [{ text: 'Não é fácil seguir regras', a: 'P' }, { text: 'Duas cabeças pensam melhor que uma', a: 'C' }, { text: 'É preferível olhar, antes de pular', a: 'M' }, { text: 'Se você não tem condições de competir, não compita', a: 'L' }]}
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function getIntensity(pct) { if (pct >= 55) return 'extreme'; if (pct >= 40) return 'strong'; if (pct >= 30) return 'moderate'; return 'balanced'; }
+function getRelationship(gap) { if (gap < 15) return 'duo'; if (gap < 30) return 'modulated'; return 'pure'; }
+
+function App() {
+  const [screen, setScreen] = useState('welcome');
+  const [userName, setUserName] = useState('');
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [shuffledQs, setShuffledQs] = useState(() => QUESTIONS.map(q => ({ ...q, options: shuffle(q.options) })));
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactWhatsapp, setContactWhatsapp] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [submitStatus, setSubmitStatus] = useState('idle');
+
+  const startQuiz = () => {
+    setShuffledQs(QUESTIONS.map(q => ({ ...q, options: shuffle(q.options) })));
+    setAnswers({}); setCurrentQ(0); setScreen('quiz');
+  };
+  const handleAnswer = (archetype) => {
+    const newAnswers = { ...answers, [currentQ]: archetype };
+    setAnswers(newAnswers);
+    if (currentQ < 19) setTimeout(() => setCurrentQ(currentQ + 1), 180);
+    else setTimeout(() => setScreen('capture'), 200);
+  };
+  const goBack = () => { if (currentQ > 0) setCurrentQ(currentQ - 1); };
+  const restart = () => { setScreen('welcome'); setUserName(''); setCurrentQ(0); setAnswers({}); setContactEmail(''); setContactWhatsapp(''); setContactMessage(''); setSubmitStatus('idle'); };
+
+  const scores = useMemo(() => {
+    const s = { P: 0, C: 0, M: 0, L: 0 };
+    Object.values(answers).forEach(a => { s[a] = (s[a] || 0) + 1; });
+    return s;
+  }, [answers]);
+
+  const ranked = useMemo(() => Object.entries(scores).map(([key, value]) => ({ key, value, pct: Math.round((value / 20) * 100), ...ARCHETYPES[key] })).sort((a, b) => b.value - a.value), [scores]);
+
+  const handleSubmit = async () => {
+    if (!contactEmail.trim() || !contactWhatsapp.trim()) return;
+    setSubmitStatus('submitting');
+    const dominant = ranked[0]; const secondary = ranked[1];
+    const intensity = getIntensity(dominant.pct);
+    const gap = dominant.pct - secondary.pct;
+    const relationship = getRelationship(gap);
+    const pairKey = `${dominant.key}_${secondary.key}`;
+    const relationshipText = relationship === 'duo' ? BLEND[pairKey] : relationship === 'modulated' ? MODULATION[pairKey] : NUANCE[pairKey];
+    const relationshipTitle = relationship === 'duo' ? `A combinação ${dominant.name} + ${secondary.name}` : relationship === 'modulated' ? `O ${secondary.name} modula seu ${dominant.name}` : `O tempero do ${secondary.name} no seu ${dominant.name}`;
+    const rawAnswers = QUESTIONS.map((q, i) => {
+      const ans = answers[i];
+      const optionText = q.options.find(o => o.a === ans)?.text || '';
+      return { questao: q.id, pergunta: q.prompt, respondeu: optionText, arquetipo: ARCHETYPES[ans]?.name || ans };
+    });
+    const payload = {
+      timestamp: new Date().toISOString(),
+      dataHoraBR: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+      contato: { nome: userName || '(não informado)', email: contactEmail, whatsapp: contactWhatsapp, mensagem: contactMessage || '' },
+      pontuacao: scores,
+      percentuais: { P: ranked.find(r=>r.key==='P').pct, C: ranked.find(r=>r.key==='C').pct, M: ranked.find(r=>r.key==='M').pct, L: ranked.find(r=>r.key==='L').pct },
+      dominante: { chave: dominant.key, nome: dominant.name, percentual: dominant.pct, intensidade: intensity },
+      secundario: { chave: secondary.key, nome: secondary.name, percentual: secondary.pct },
+      ranking: ranked.map(r => ({ chave: r.key, nome: r.name, percentual: r.pct })),
+      gap, relacaoEntrePerfis: relationship,
+      relatorio: {
+        oVeredito: N[dominant.key].opening[intensity],
+        emEquilibrio: N[dominant.key].balanced_state[intensity],
+        foraDeEixo: N[dominant.key].shadow[intensity],
+        regulacaoConsciente: N[dominant.key].regulation[intensity],
+        tituloRelacao: relationshipTitle,
+        textoRelacao: relationshipText
+      },
+      respostasBrutas: rawAnswers
+    };
+    try {
+      if (WEBHOOK_URL) {
+        await fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+      }
+      setSubmitStatus('success');
+      setTimeout(() => setScreen('thanks'), 600);
+    } catch (e) {
+      console.error('Erro no envio:', e);
+      setSubmitStatus('success');
+      setTimeout(() => setScreen('thanks'), 600);
+    }
+  };
+
+  if (screen === 'welcome') {
+    return (
+      <div className="min-h-screen p-6 py-12">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="inline-block text-xs tracking-[0.3em] uppercase font-medium mb-6" style={{ color: '#78350F' }}>Avaliação Comportamental</div>
+            <h1 className="font-serif text-5xl md:text-6xl font-normal mb-4 tracking-tight" style={{ color: '#1C1917' }}>Mindset Profile</h1>
+            <div className="w-12 h-px mx-auto mb-6" style={{ backgroundColor: '#78350F' }} />
+            <p className="text-base md:text-lg leading-relaxed max-w-lg mx-auto" style={{ color: '#44403C' }}>Um instrumento integrativo que conecta tipologia psicológica, genética e neurociência aplicada ao comportamento.</p>
+          </div>
+          <div className="bg-white p-7 mb-8 border" style={{ borderColor: '#E7E5E4' }}>
+            <h3 className="font-serif text-xl mb-4" style={{ color: '#1C1917' }}>Como responder</h3>
+            <div className="space-y-3 text-sm leading-relaxed" style={{ color: '#44403C' }}>
+              <p><span className="font-semibold" style={{ color: '#1C1917' }}>Responda como você É, não como gostaria de ser.</span> O valor da avaliação está exatamente na sua honestidade — não há respostas certas ou erradas, apenas as suas.</p>
+              <p><span className="font-semibold" style={{ color: '#1C1917' }}>Não pense demais.</span> Sua primeira reação costuma ser a mais autêntica. Quando duas alternativas parecerem possíveis, escolha aquela que combina com você na maior parte das situações.</p>
+              <p><span className="font-semibold" style={{ color: '#1C1917' }}>Em cada pergunta, escolha apenas uma alternativa</span> — aquela que mais te representa. O instrumento foi desenhado para forçar essa escolha, é justamente isso que gera um perfil nítido.</p>
+              <p><span className="font-semibold" style={{ color: '#1C1917' }}>Reserve cerca de 5 minutos</span> em um lugar tranquilo. São 20 perguntas, e ao final Diego Winterhalter te apresenta pessoalmente sua análise.</p>
+            </div>
+          </div>
+          <div className="mb-6">
+            <label className="block text-xs tracking-wider uppercase font-medium mb-2" style={{ color: '#78716C' }}>Como prefere ser chamado(a) <span className="text-stone-400 normal-case font-normal">(opcional)</span></label>
+            <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Seu nome" className="w-full px-4 py-4 bg-white border outline-none transition text-base" style={{ borderColor: '#E7E5E4', color: '#1C1917' }} onFocus={(e) => e.target.style.borderColor = '#78350F'} onBlur={(e) => e.target.style.borderColor = '#E7E5E4'} />
+          </div>
+          <button onClick={startQuiz} className="w-full text-white font-medium py-5 tracking-wide transition hover:opacity-90" style={{ backgroundColor: '#1C1917' }}>Iniciar avaliação</button>
+          <div className="mt-12 pt-8 border-t text-center" style={{ borderColor: '#E7E5E4' }}>
+            <p className="text-xs leading-relaxed" style={{ color: '#78716C' }}>Baseado em Tabajara, T. C. A. (2025). <em>Mindset Profile: An Integrative Approach Connecting Psychological Profiles, Genetics, and Neuroscience Applied to Behavior</em>. International Journal of Professional Business Review, 10(10), e05661.</p>
+            <a href="https://doi.org/10.26668/businessreview/2025.v10i10.5661" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-xs hover:underline" style={{ color: '#78350F' }}>Acessar artigo completo <ExternalLink className="w-3 h-3" /></a>
+            <p className="text-xs mt-4" style={{ color: '#A8A29E' }}>Ferramenta demonstrativa de autoconhecimento. Não substitui avaliação psicológica profissional.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'quiz') {
+    const q = shuffledQs[currentQ];
+    const progress = ((currentQ + 1) / 20) * 100;
+    const selectedArchetype = answers[currentQ];
+    return (
+      <div className="min-h-screen p-6 py-10">
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-8">
+            <div className="flex justify-between items-baseline mb-3">
+              <span className="text-xs tracking-[0.2em] uppercase font-medium" style={{ color: '#78716C' }}>Pergunta {String(currentQ + 1).padStart(2, '0')} / 20</span>
+              <span className="text-xs font-medium" style={{ color: '#1C1917' }}>{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full h-px" style={{ backgroundColor: '#E7E5E4' }}>
+              <div className="h-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: '#1C1917' }} />
+            </div>
+          </div>
+          <div className="bg-white p-8 md:p-10 border" style={{ borderColor: '#E7E5E4' }}>
+            <h2 className="font-serif text-3xl md:text-4xl mb-8 leading-tight" style={{ color: '#1C1917' }}>{q.prompt}</h2>
+            <div className="space-y-2">
+              {q.options.map((opt, idx) => {
+                const isSelected = selectedArchetype === opt.a;
+                return (
+                  <button key={idx} onClick={() => handleAnswer(opt.a)} className="w-full text-left p-5 border transition-all duration-150 group" style={{ backgroundColor: isSelected ? '#1C1917' : '#FFFFFF', borderColor: isSelected ? '#1C1917' : '#E7E5E4', color: isSelected ? '#FFFFFF' : '#1C1917' }} onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = '#78350F'; }} onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = '#E7E5E4'; }}>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-xs font-semibold border transition" style={{ borderColor: isSelected ? '#FFFFFF' : '#E7E5E4', color: isSelected ? '#FFFFFF' : '#78716C' }}>{String.fromCharCode(65 + idx)}</div>
+                      <span className="text-base md:text-lg leading-relaxed">{opt.text}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-between items-center mt-8 pt-6 border-t" style={{ borderColor: '#E7E5E4' }}>
+              <button onClick={goBack} disabled={currentQ === 0} className={`flex items-center gap-2 text-sm transition ${currentQ === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:underline'}`} style={{ color: '#44403C' }}><ChevronLeft className="w-4 h-4" />Voltar</button>
+              <span className="text-xs tracking-wide" style={{ color: '#A8A29E' }}>Clique para avançar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'capture') {
+    const canSubmit = contactEmail.trim() && contactWhatsapp.trim() && submitStatus !== 'submitting';
+    return (
+      <div className="min-h-screen p-6 py-12">
+        <div className="max-w-xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="text-xs tracking-[0.3em] uppercase font-medium mb-3" style={{ color: '#78350F' }}>Quase lá</div>
+            <div className="w-12 h-px mx-auto mb-6" style={{ backgroundColor: '#78350F' }} />
+            <h1 className="font-serif text-4xl md:text-5xl mb-5" style={{ color: '#1C1917' }}>Sua análise está pronta</h1>
+            <p className="text-base md:text-lg leading-relaxed" style={{ color: '#44403C' }}>Para receber seu relatório comportamental personalizado, deixe seus dados abaixo. <strong style={{ color: '#1C1917' }}>Diego Winterhalter entrará em contato pessoalmente</strong> para apresentar sua análise.</p>
+          </div>
+          <div className="bg-white border p-8 md:p-10 mb-6" style={{ borderColor: '#E7E5E4' }}>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs tracking-wider uppercase font-medium mb-2" style={{ color: '#78716C' }}>Nome completo</label>
+                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Seu nome" className="w-full px-4 py-3.5 bg-white border outline-none text-base transition" style={{ borderColor: '#E7E5E4', color: '#1C1917' }} onFocus={(e) => e.target.style.borderColor = '#78350F'} onBlur={(e) => e.target.style.borderColor = '#E7E5E4'} />
+              </div>
+              <div>
+                <label className="block text-xs tracking-wider uppercase font-medium mb-2" style={{ color: '#78716C' }}>Email <span style={{ color: '#B91C1C' }}>*</span></label>
+                <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="seu@email.com" required className="w-full px-4 py-3.5 bg-white border outline-none text-base transition" style={{ borderColor: '#E7E5E4', color: '#1C1917' }} onFocus={(e) => e.target.style.borderColor = '#78350F'} onBlur={(e) => e.target.style.borderColor = '#E7E5E4'} />
+              </div>
+              <div>
+                <label className="block text-xs tracking-wider uppercase font-medium mb-2" style={{ color: '#78716C' }}>WhatsApp <span style={{ color: '#B91C1C' }}>*</span></label>
+                <input type="tel" value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="(54) 99999-9999" required className="w-full px-4 py-3.5 bg-white border outline-none text-base transition" style={{ borderColor: '#E7E5E4', color: '#1C1917' }} onFocus={(e) => e.target.style.borderColor = '#78350F'} onBlur={(e) => e.target.style.borderColor = '#E7E5E4'} />
+              </div>
+              <div>
+                <label className="block text-xs tracking-wider uppercase font-medium mb-2" style={{ color: '#78716C' }}>Mensagem <span className="text-stone-400 normal-case font-normal">(opcional)</span></label>
+                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder="Algo que você gostaria de compartilhar antes da análise..." rows={3} className="w-full px-4 py-3.5 bg-white border outline-none text-base transition resize-none" style={{ borderColor: '#E7E5E4', color: '#1C1917' }} onFocus={(e) => e.target.style.borderColor = '#78350F'} onBlur={(e) => e.target.style.borderColor = '#E7E5E4'} />
+              </div>
+            </div>
+            <button onClick={handleSubmit} disabled={!canSubmit} className="w-full mt-7 text-white font-medium py-4 tracking-wide transition hover:opacity-90 flex items-center justify-center gap-2" style={{ backgroundColor: '#1C1917', opacity: canSubmit ? 1 : 0.4, cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
+              {submitStatus === 'submitting' ? (<><Loader2 className="w-4 h-4 animate-spin" />Enviando...</>) : 'Enviar e receber análise'}
+            </button>
+            <p className="text-xs text-center mt-4" style={{ color: '#78716C' }}>Seus dados são confidenciais e usados apenas para apresentar sua análise.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'thanks') {
+    return (
+      <div className="min-h-screen p-6 py-12 flex items-center">
+        <div className="max-w-xl mx-auto w-full">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-8" style={{ backgroundColor: '#FEF3C7' }}>
+              <CheckCircle2 className="w-8 h-8" style={{ color: '#78350F' }} />
+            </div>
+            <div className="text-xs tracking-[0.3em] uppercase font-medium mb-3" style={{ color: '#78350F' }}>Recebido com sucesso</div>
+            <div className="w-12 h-px mx-auto mb-8" style={{ backgroundColor: '#78350F' }} />
+            <h1 className="font-serif text-4xl md:text-5xl mb-6 leading-tight" style={{ color: '#1C1917' }}>{userName ? `Obrigado, ${userName.split(' ')[0]}` : 'Obrigado pela sua participação'}</h1>
+            <p className="text-base md:text-lg leading-relaxed mb-8" style={{ color: '#44403C' }}>Seu perfil comportamental foi processado e está sendo analisado. <strong style={{ color: '#1C1917' }}>Diego Winterhalter entrará em contato em breve</strong> via WhatsApp para apresentar pessoalmente sua análise, explicar os achados e responder suas dúvidas.</p>
+            <div className="bg-white border p-7 mb-8 text-left" style={{ borderColor: '#E7E5E4' }}>
+              <div className="text-xs tracking-[0.25em] uppercase font-medium mb-3" style={{ color: '#78350F' }}>Por que apresentação pessoal?</div>
+              <p className="text-sm leading-relaxed" style={{ color: '#44403C' }}>A análise comportamental traz nuances que precisam de contexto. Em vez de te entregar um relatório frio, Diego conduz uma conversa onde os achados ganham sentido prático para a sua vida e seu trabalho — especialmente em vendas, liderança e relacionamentos.</p>
+            </div>
+            <button onClick={restart} className="inline-flex items-center gap-2 px-6 py-3 border bg-white transition hover:bg-stone-50 text-sm" style={{ borderColor: '#E7E5E4', color: '#44403C' }}><RotateCcw className="w-4 h-4" />Refazer avaliação</button>
+          </div>
+          <div className="mt-16 pt-8 border-t text-center" style={{ borderColor: '#E7E5E4' }}>
+            <div className="mb-3"><LogoDW size="sm" /></div>
+            <div className="font-serif text-lg mb-1" style={{ color: '#1C1917' }}>Diego Winterhalter</div>
+            <div className="text-xs tracking-[0.25em] uppercase font-medium" style={{ color: '#78350F' }}>Performance Mental Aplicada a Vendas</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
