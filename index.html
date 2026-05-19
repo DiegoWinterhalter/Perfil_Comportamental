@@ -1989,7 +1989,22 @@ const App = (function() {
   
   // ---------- GERAÇÃO DO PDF ----------
   async function generatePdf() {
-    const element = document.getElementById('pdf-template');
+    const original = document.getElementById('pdf-template');
+    
+    // FIX: html2canvas não consegue capturar elementos position:fixed.
+    // Solução: clonar o template num container static fora do viewport antes de renderizar.
+    const container = document.createElement('div');
+    container.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 794px; background: #F7F7F5; z-index: -1;';
+    
+    const clone = original.cloneNode(true);
+    clone.id = 'pdf-template-clone';
+    clone.style.cssText = 'position: static; width: 794px; background: #F7F7F5; display: block; visibility: visible; opacity: 1;';
+    
+    container.appendChild(clone);
+    document.body.appendChild(container);
+    
+    // Aguarda o layout assentar (crítico — sem isso o html2canvas captura vazio)
+    await new Promise(r => setTimeout(r, 500));
     
     const opt = {
       margin: 0,
@@ -2010,8 +2025,13 @@ const App = (function() {
       pagebreak: { mode: ['css'], before: '.page' }
     };
     
-    const blob = await html2pdf().set(opt).from(element).output('blob');
-    return blob;
+    try {
+      const blob = await html2pdf().set(opt).from(clone).output('blob');
+      return blob;
+    } finally {
+      // Limpa o container temporário sempre, mesmo se houver erro
+      if (container.parentNode) document.body.removeChild(container);
+    }
   }
   
   // ---------- ENVIO PRO WEBHOOK ----------
