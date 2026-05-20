@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -1989,23 +1989,21 @@ const App = (function() {
   
   // ---------- GERAÇÃO DO PDF ----------
   async function generatePdf() {
-    const original = document.getElementById('pdf-template');
-    
-    // FIX: html2canvas não consegue capturar elementos position:fixed.
-    // Solução: clonar o template num container static fora do viewport antes de renderizar.
-    const container = document.createElement('div');
-    container.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 794px; background: #F7F7F5; z-index: -1;';
-    
-    const clone = original.cloneNode(true);
-    clone.id = 'pdf-template-clone';
-    clone.style.cssText = 'position: static; width: 794px; background: #F7F7F5; display: block; visibility: visible; opacity: 1;';
-    
-    container.appendChild(clone);
-    document.body.appendChild(container);
-    
-    // Aguarda o layout assentar (crítico — sem isso o html2canvas captura vazio)
-    await new Promise(r => setTimeout(r, 500));
-    
+    const el = document.getElementById('pdf-template');
+    if (!el) throw new Error('pdf-template não encontrado');
+
+    // Salva o estilo inline original pra restaurar no fim
+    const prevStyle = el.getAttribute('style');
+
+    // FIX 1: html2canvas não captura position:fixed. Troca pra absolute
+    // (fora do viewport, mas capturável) MANTENDO o id 'pdf-template' —
+    // todo o CSS é escopado em '#pdf-template ...', então o id não pode mudar.
+    el.style.cssText = 'position:absolute; left:-9999px; top:0; width:210mm; ' +
+      'background:#FFFFFF; display:block; visibility:visible; opacity:1; z-index:-1;';
+
+    // Aguarda layout e fontes (Inter) assentarem
+    await new Promise(r => setTimeout(r, 600));
+
     const opt = {
       margin: 0,
       filename: `MINDCODE_Enxuto_${state.contact.name.split(' ')[0]}.pdf`,
@@ -2022,15 +2020,17 @@ const App = (function() {
         orientation: 'portrait',
         compress: true
       },
-      pagebreak: { mode: ['css'], before: '.page' }
+      // FIX 2: o CSS já tem '.page { break-after: page }'. Só 'css' respeita isso.
+      pagebreak: { mode: ['css'] }
     };
-    
+
     try {
-      const blob = await html2pdf().set(opt).from(clone).output('blob');
+      const blob = await html2pdf().set(opt).from(el).output('blob');
       return blob;
     } finally {
-      // Limpa o container temporário sempre, mesmo se houver erro
-      if (container.parentNode) document.body.removeChild(container);
+      // Restaura o estado oculto original
+      if (prevStyle === null) el.removeAttribute('style');
+      else el.setAttribute('style', prevStyle);
     }
   }
   
