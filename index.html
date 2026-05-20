@@ -1989,50 +1989,59 @@ const App = (function() {
   
   // ---------- GERAÇÃO DO PDF ----------
   async function generatePdf() {
-    const el = document.getElementById('pdf-template');
-    if (!el) throw new Error('pdf-template não encontrado');
+    const original = document.getElementById('pdf-template');
+    if (!original) throw new Error('pdf-template não encontrado');
 
-    // Salva o estilo inline original pra restaurar no fim
-    const prevStyle = el.getAttribute('style');
+    // O CSS é escopado em '#pdf-template' -> o clone mantém esse id, e o
+    // original cede o id e fica escondido durante a geração.
+    original.style.display = 'none';
+    original.id = 'pdf-template-tmp';
 
-    // FIX 1: html2canvas não captura position:fixed. Troca pra absolute
-    // (fora do viewport, mas capturável) MANTENDO o id 'pdf-template' —
-    // todo o CSS é escopado em '#pdf-template ...', então o id não pode mudar.
-    el.style.cssText = 'position:absolute; left:-9999px; top:0; width:210mm; ' +
-      'background:#FFFFFF; display:block; visibility:visible; opacity:1; z-index:-1;';
+    // Container fora da tela; clone em position:static (html2canvas não
+    // captura elementos fixed/absolute fora do viewport).
+    const container = document.createElement('div');
+    container.style.cssText = 'position:absolute; left:-9999px; top:0; width:210mm; background:#F7F7F5; z-index:-1;';
 
-    // Aguarda layout e fontes (Inter) assentarem
+    const clone = original.cloneNode(true);
+    clone.id = 'pdf-template';
+    clone.style.cssText = 'position:static; width:210mm; background:#F7F7F5; display:block; visibility:visible; opacity:1;';
+
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
     await new Promise(r => setTimeout(r, 600));
+
+    const cloneH = clone.offsetHeight;
+    const numPages = clone.querySelectorAll('.page').length;
 
     const opt = {
       margin: 0,
       filename: `MINDCODE_Enxuto_${state.contact.name.split(' ')[0]}.pdf`,
       image: { type: 'jpeg', quality: 0.95 },
+      // height/width forçados: sem isso o html2canvas infla o canvas (~2x).
       html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        backgroundColor: '#F7F7F5'
+        scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#F7F7F5',
+        height: cloneH, windowHeight: cloneH, width: 794, windowWidth: 794
       },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'portrait',
-        compress: true
-      },
-      // FIX 2: o CSS já tem '.page { break-after: page }'. Só 'css' respeita isso.
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
       pagebreak: { mode: ['css'] }
     };
 
     try {
-      const blob = await html2pdf().set(opt).from(el).output('blob');
-      return blob;
+      // Worker dá acesso ao objeto jsPDF pra remover a pagina extra de sobra.
+      const worker = html2pdf().set(opt).from(clone);
+      const pdf = await worker.toCanvas().toPdf().get('pdf');
+      while (pdf.getNumberOfPages() > numPages) {
+        pdf.deletePage(pdf.getNumberOfPages());
+      }
+      return pdf.output('blob');
     } finally {
-      // Restaura o estado oculto original
-      if (prevStyle === null) el.removeAttribute('style');
-      else el.setAttribute('style', prevStyle);
+      if (container.parentNode) document.body.removeChild(container);
+      original.id = 'pdf-template';
+      original.style.display = '';
     }
   }
+
   
   // ---------- ENVIO PRO WEBHOOK ----------
   async function sendToWebhook(pdfBlob) {
