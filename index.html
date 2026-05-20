@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 :root {
@@ -1512,12 +1512,9 @@ const App = (function() {
     
     // Cálculo
     calculate();
-    
-    // Render do template do PDF
-    renderPdfTemplate();
-    
-    // Geração do PDF
-    stepEl.textContent = 'Renderizando o PDF (alguns segundos)...';
+
+    // Geração do PDF (jsPDF — monta as 5 páginas direto, sem rasterizar DOM)
+    stepEl.textContent = 'Renderizando o PDF...';
     const pdfBlob = await generatePdf();
     
     // Envio pro webhook
@@ -1987,59 +1984,472 @@ const App = (function() {
     return div.innerHTML;
   }
   
-  // ---------- GERAÇÃO DO PDF ----------
-  async function generatePdf() {
-    const original = document.getElementById('pdf-template');
-    if (!original) throw new Error('pdf-template não encontrado');
+  // ---------- GERAÇÃO DO PDF (jsPDF — molde fixo + campos variáveis) ----------
+  // Layout em mm. A4 portrait = 210 x 297.
+  // Cores da marca:
+  const PDF_COLORS = {
+    bg: [247, 247, 245],         // #F7F7F5
+    text: [31, 31, 31],          // #1F1F1F
+    text2: [58, 58, 58],         // #3A3A3A
+    text3: [107, 107, 107],      // #6B6B6B
+    mute: [153, 153, 153],       // #999
+    bronze: [176, 138, 87],      // #B08A57
+    cardBg: [255, 255, 255],
+    border: [237, 234, 226],     // #EDEAE2
+    divider: [229, 226, 218],    // #E5E2DA
+    pavao: [122, 143, 163],      // #7A8FA3
+    macaco: [138, 143, 122],     // #8A8F7A
+    cachorro: [183, 168, 160],   // #B7A8A0
+    brandDark: [31, 31, 31],
+    softBg: [238, 237, 232],     // #EEEDE8
+    barAttention: [165, 87, 71]  // #A55747 (vermelho atenção)
+  };
 
-    // O CSS é escopado em '#pdf-template' -> o clone mantém esse id, e o
-    // original cede o id e fica escondido durante a geração.
-    original.style.display = 'none';
-    original.id = 'pdf-template-tmp';
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return [parseInt(h.substr(0,2),16), parseInt(h.substr(2,2),16), parseInt(h.substr(4,2),16)];
+  }
 
-    // Container fora da tela; clone em position:static (html2canvas não
-    // captura elementos fixed/absolute fora do viewport).
-    const container = document.createElement('div');
-    container.style.cssText = 'position:absolute; left:-9999px; top:0; width:210mm; background:#F7F7F5; z-index:-1;';
+  // Desenha o gráfico de rosca em um canvas off-screen e retorna o dataURL.
+  // Canvas pequeno NÃO trava (o que travava era rasterizar páginas inteiras).
+  function buildDonutDataUrl(percentages, dom, dominantPct) {
+    const size = 600;            // alta resolução para impressão nítida
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    const cx = size / 2, cy = size / 2;
+    const outerR = size * 0.42;
+    const innerR = size * 0.30;
+    const order = ['leao', 'pavao', 'macaco', 'cachorro'];
+    let start = -Math.PI / 2;
 
-    const clone = original.cloneNode(true);
-    clone.id = 'pdf-template';
-    clone.style.cssText = 'position:static; width:210mm; background:#F7F7F5; display:block; visibility:visible; opacity:1;';
+    // Anel de fundo (caso a soma seja < 100, mantém aro suave)
+    ctx.beginPath();
+    ctx.arc(cx, cy, (outerR + innerR) / 2, 0, Math.PI * 2);
+    ctx.lineWidth = outerR - innerR;
+    ctx.strokeStyle = '#EEEDE8';
+    ctx.stroke();
 
-    container.appendChild(clone);
-    document.body.appendChild(container);
+    order.forEach(profile => {
+      const pct = percentages[profile] || 0;
+      if (pct <= 0) return;
+      const slice = (pct / 100) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR, start, start + slice, false);
+      ctx.arc(cx, cy, innerR, start + slice, start, true);
+      ctx.closePath();
+      ctx.fillStyle = PROFILES[profile].color;
+      ctx.fill();
+      start += slice;
+    });
 
-    await new Promise(r => setTimeout(r, 600));
+    // Texto central: percentual + nome
+    ctx.fillStyle = '#1F1F1F';
+    ctx.font = 'bold 110px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dominantPct + '%', cx, cy - 18);
+    ctx.fillStyle = '#6B6B6B';
+    ctx.font = 'bold 36px Helvetica, Arial, sans-serif';
+    ctx.fillText(dom.name.toUpperCase(), cx, cy + 60);
 
-    const cloneH = clone.offsetHeight;
-    const numPages = clone.querySelectorAll('.page').length;
+    return canvas.toDataURL('image/png');
+  }
 
-    const opt = {
-      margin: 0,
-      filename: `MINDCODE_Enxuto_${state.contact.name.split(' ')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      // height/width forçados: sem isso o html2canvas infla o canvas (~2x).
-      html2canvas: {
-        scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#F7F7F5',
-        height: cloneH, windowHeight: cloneH, width: 794, windowWidth: 794
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-      pagebreak: { mode: ['css'] }
-    };
+  // Helpers de desenho no jsPDF
+  function pdfFillRect(doc, x, y, w, h, rgb) {
+    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    doc.rect(x, y, w, h, 'F');
+  }
+  function pdfRoundedCard(doc, x, y, w, h, barRgb) {
+    // Fundo branco com borda suave
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(x, y, w, h, 3, 3, 'FD');
+    // Barra de topo colorida (faixa de 1mm)
+    doc.setFillColor(barRgb[0], barRgb[1], barRgb[2]);
+    doc.rect(x, y, w, 1, 'F');
+  }
+  function pdfSetText(doc, rgb, sizePt, weight) {
+    doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    doc.setFont('helvetica', weight || 'normal');
+    doc.setFontSize(sizePt);
+  }
+  // Desenha texto com quebra, retorna a próxima Y (mm).
+  function pdfWrappedText(doc, text, x, y, maxW, lineHeightMm) {
+    const lines = doc.splitTextToSize(text || '', maxW);
+    lines.forEach((line, i) => doc.text(line, x, y + i * lineHeightMm));
+    return y + lines.length * lineHeightMm;
+  }
 
+  // Header padrão das páginas 2-5
+  function pdfPageHeader(doc, tag, title) {
+    // Mini-logo (caixa preta com o owl)
+    const boxX = 18, boxY = 14, boxW = 14, boxH = 11;
+    doc.setFillColor(31, 31, 31);
+    doc.roundedRect(boxX, boxY, boxW, boxH, 1.2, 1.2, 'F');
     try {
-      // Worker dá acesso ao objeto jsPDF pra remover a pagina extra de sobra.
-      const worker = html2pdf().set(opt).from(clone);
-      const pdf = await worker.toCanvas().toPdf().get('pdf');
-      while (pdf.getNumberOfPages() > numPages) {
-        pdf.deletePage(pdf.getNumberOfPages());
+      doc.addImage(ASSETS.owl, 'PNG', boxX + 2, boxY + 1.5, boxW - 4, boxH - 3, undefined, 'FAST');
+    } catch(e) { /* ignore se falhar */ }
+    // Nome da marca
+    pdfSetText(doc, PDF_COLORS.text, 9, 'bold');
+    doc.text('DIEGO WINTERHALTER', boxX + boxW + 4, boxY + 4.5);
+    pdfSetText(doc, PDF_COLORS.bronze, 6, 'bold');
+    doc.text('PERFORMANCE MENTAL APLICADA A VENDAS', boxX + boxW + 4, boxY + 8);
+    // Linha bronze pequena
+    doc.setDrawColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+    doc.setLineWidth(0.35);
+    doc.line(boxX + boxW + 4, boxY + 9.5, boxX + boxW + 4 + 11, boxY + 9.5);
+
+    // Tag à direita
+    pdfSetText(doc, PDF_COLORS.bronze, 8, 'bold');
+    doc.text(tag, 192, boxY + 4.5, { align: 'right' });
+    // Título grande à direita
+    pdfSetText(doc, PDF_COLORS.text, 18, 'bold');
+    doc.text(title, 192, boxY + 12, { align: 'right' });
+
+    // Linha horizontal de separação
+    doc.setDrawColor(PDF_COLORS.divider[0], PDF_COLORS.divider[1], PDF_COLORS.divider[2]);
+    doc.setLineWidth(0.2);
+    doc.line(18, 34, 192, 34);
+  }
+
+  // Footer padrão
+  function pdfPageFooter(doc, pageLabel) {
+    const y = 287;
+    // Mini quadrado preto + owl
+    doc.setFillColor(31, 31, 31);
+    doc.roundedRect(18, y - 3, 9, 7, 0.8, 0.8, 'F');
+    try {
+      doc.addImage(ASSETS.owl, 'PNG', 19.5, y - 2, 6, 5, undefined, 'FAST');
+    } catch(e) {}
+    pdfSetText(doc, PDF_COLORS.mute, 8, 'normal');
+    doc.text('MINDCODE · Enxuto', 30, y + 1);
+    doc.text(pageLabel, 192, y + 1, { align: 'right' });
+  }
+
+  // ====== Construção das 5 páginas ======
+  async function buildPdfDoc() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+
+    const r = state.result;
+    const dom = PROFILES[r.dominant.profile];
+    const sec = PROFILES[r.secondary.profile];
+    const today = new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+    const comboTitle = r.combo ? r.combo.name : (dom.name + ' Predominante');
+    const comboEssence = r.combo ? r.combo.essence :
+      'Seu perfil tem dominância forte do arquétipo ' + dom.name + ', com expressão moderada dos demais. Isso significa que você opera de forma muito coerente com o padrão ' + dom.nucleus + '.';
+    const comboRisk = r.combo ? r.combo.risk :
+      'Sua principal zona de fragilidade está nos perfis menos expressos. Em contextos que exigem esses registros, será necessário esforço consciente de adaptação.';
+    const comboPhrase = r.combo ? r.combo.phrase :
+      'Seu padrão dominante é seu maior ativo. Sua maior evolução está em desenvolver os registros que aparecem com menos intensidade.';
+
+    // =============== PÁGINA 1 — CAPA ===============
+    pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
+    // Lado direito: foto "maos" cobre coluna direita (~95mm)
+    try {
+      doc.addImage(ASSETS.maos, 'JPEG', 110, 0, 100, 297, undefined, 'FAST');
+    } catch(e) {}
+    // Gradiente suave de transição (faixa bg sólida com fade fake — 3 faixas)
+    pdfFillRect(doc, 110, 0, 8, 297, PDF_COLORS.bg);
+    doc.setFillColor(247, 247, 245);
+    doc.setGState(new doc.GState({ opacity: 0.55 }));
+    doc.rect(118, 0, 6, 297, 'F');
+    doc.setGState(new doc.GState({ opacity: 0.25 }));
+    doc.rect(124, 0, 6, 297, 'F');
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    // Branding topo esquerdo
+    const cBoxX = 18, cBoxY = 26, cBoxW = 24, cBoxH = 18;
+    doc.setFillColor(31, 31, 31);
+    doc.roundedRect(cBoxX, cBoxY, cBoxW, cBoxH, 2, 2, 'F');
+    try {
+      doc.addImage(ASSETS.owl, 'PNG', cBoxX + 3, cBoxY + 3, cBoxW - 6, cBoxH - 6, undefined, 'FAST');
+    } catch(e) {}
+    pdfSetText(doc, PDF_COLORS.text, 12, 'bold');
+    doc.text('DIEGO WINTERHALTER', cBoxX + cBoxW + 5, cBoxY + 7);
+    pdfSetText(doc, PDF_COLORS.bronze, 7, 'bold');
+    doc.text('PERFORMANCE MENTAL APLICADA A VENDAS', cBoxX + cBoxW + 5, cBoxY + 11);
+    doc.setDrawColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+    doc.setLineWidth(0.4);
+    doc.line(cBoxX + cBoxW + 5, cBoxY + 13, cBoxX + cBoxW + 5 + 20, cBoxY + 13);
+
+    // Título central
+    pdfSetText(doc, PDF_COLORS.text, 50, 'bold');
+    doc.text('MINDCODE', 18, 170);
+    pdfSetText(doc, PDF_COLORS.bronze, 11, 'bold');
+    doc.text('RELATÓRIO ENXUTO', 18, 180);
+    pdfSetText(doc, PDF_COLORS.text2, 11, 'normal');
+    doc.text('Seu código de comportamento, decisão e performance.', 18, 190);
+    doc.setDrawColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+    doc.setLineWidth(0.6);
+    doc.line(18, 195, 18 + 25, 195);
+
+    // Caixa "Avaliado" embaixo
+    const evX = 18, evY = 230, evW = 80, evH = 36;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(evX, evY, evW, evH, 3, 3, 'FD');
+    doc.setFillColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+    doc.rect(evX, evY, evW, 1.4, 'F');
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('Avaliado', evX + 6, evY + 8);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    doc.text(state.contact.name || '—', evX + 6, evY + 16);
+    doc.text('Perfil: ' + dom.name + ' + ' + sec.name, evX + 6, evY + 22);
+    doc.text(today, evX + 6, evY + 28);
+
+    pdfSetText(doc, PDF_COLORS.mute, 7, 'normal');
+    doc.text('Ferramenta comportamental aplicada · Não substitui avaliação psicológica profissional.', evX, evY + evH + 6);
+
+    // =============== PÁGINA 2 — RESULTADO GERAL ===============
+    doc.addPage();
+    pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
+    pdfPageHeader(doc, 'RELATÓRIO ENXUTO', 'Resultado Geral');
+
+    // Cabeçalho da seção
+    pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
+    doc.text('01', 18, 48);
+    pdfSetText(doc, PDF_COLORS.text, 22, 'bold');
+    doc.text('Seu mapa comportamental', 18, 58);
+    pdfSetText(doc, PDF_COLORS.text3, 11, 'normal');
+    doc.text('Distribuição percentual dos quatro códigos', 18, 65);
+
+    // 3 cards de stats
+    const statsY = 72, statW = 56, statH = 24, gap = 5;
+    const statsX0 = 18;
+    const statLabels = [
+      { lab: 'PERFIL DOMINANTE', val: dom.name, bronze: true },
+      { lab: 'INTENSIDADE',      val: r.intensity, bronze: true },
+      { lab: 'SECUNDÁRIO',       val: sec.name, bronze: false }
+    ];
+    statLabels.forEach((s, i) => {
+      const sx = statsX0 + i * (statW + gap);
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(sx, statsY, statW, statH, 3, 3, 'FD');
+      pdfSetText(doc, PDF_COLORS.text3, 7, 'bold');
+      doc.text(s.lab, sx + statW / 2, statsY + 7, { align: 'center' });
+      pdfSetText(doc, s.bronze ? PDF_COLORS.bronze : PDF_COLORS.text, 16, 'bold');
+      doc.text(s.val, sx + statW / 2, statsY + 18, { align: 'center' });
+    });
+
+    // Gráfico de rosca + barras
+    const donutDataUrl = buildDonutDataUrl(r.percentages, dom, r.dominant.percentage);
+    const donutY = statsY + statH + 8;
+    doc.addImage(donutDataUrl, 'PNG', 24, donutY, 70, 70, undefined, 'FAST');
+
+    // Barras horizontais (à direita do donut)
+    const barX = 100, barW = 90;
+    let barY = donutY + 8;
+    r.ranking.forEach(item => {
+      const p = PROFILES[item.profile];
+      const rgb = hexToRgb(p.color);
+      pdfSetText(doc, PDF_COLORS.text, 10, 'bold');
+      doc.text(p.name, barX, barY);
+      // Track
+      doc.setFillColor(PDF_COLORS.softBg[0], PDF_COLORS.softBg[1], PDF_COLORS.softBg[2]);
+      doc.roundedRect(barX + 22, barY - 2.5, barW - 40, 3, 1.2, 1.2, 'F');
+      // Fill proporcional
+      const fillW = ((item.percentage / 100) * (barW - 40));
+      if (fillW > 0) {
+        doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+        doc.roundedRect(barX + 22, barY - 2.5, fillW, 3, 1.2, 1.2, 'F');
       }
-      return pdf.output('blob');
-    } finally {
-      if (container.parentNode) document.body.removeChild(container);
-      original.id = 'pdf-template';
-      original.style.display = '';
-    }
+      pdfSetText(doc, PDF_COLORS.text, 10, 'bold');
+      doc.text(item.percentage + '%', barX + barW - 6, barY, { align: 'right' });
+      barY += 12;
+    });
+
+    // Divider
+    doc.setDrawColor(PDF_COLORS.divider[0], PDF_COLORS.divider[1], PDF_COLORS.divider[2]);
+    doc.setLineWidth(0.2);
+    doc.line(18, donutY + 78, 192, donutY + 78);
+
+    // Card "Como ler"
+    const readY = donutY + 84;
+    pdfRoundedCard(doc, 18, readY, 174, 34, PDF_COLORS.bronze);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('Como ler seu resultado', 24, readY + 8);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    const readText =
+      'O dominante mostra seu eixo comportamental principal — o registro em que você opera por padrão. ' +
+      'O secundário modula esse eixo, ajustando a forma como você comunica, decide e se relaciona. ' +
+      'A combinação dominante + secundário forma um perfil híbrido nomeado: você é um ' + comboTitle + '.';
+    pdfWrappedText(doc, readText, 24, readY + 14, 162, 4.5);
+
+    pdfPageFooter(doc, '02');
+
+    // =============== PÁGINA 3 — PERFIL DOMINANTE ===============
+    doc.addPage();
+    pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
+    pdfPageHeader(doc, dom.name.toUpperCase() + ' · ' + r.dominant.percentage + '%', 'Perfil Dominante');
+
+    pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
+    doc.text('02', 18, 48);
+    pdfSetText(doc, PDF_COLORS.text, 24, 'bold');
+    doc.text(dom.name, 18, 58);
+    pdfSetText(doc, PDF_COLORS.text3, 11, 'normal');
+    doc.text(dom.title + ' · Núcleo: ' + dom.nucleus, 18, 65);
+
+    // Card Essência (bronze)
+    const essLines = doc.splitTextToSize(dom.essence, 162);
+    const essH = Math.max(20, 10 + essLines.length * 4.5);
+    pdfRoundedCard(doc, 18, 72, 174, essH, PDF_COLORS.bronze);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('Essência', 24, 80);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    essLines.forEach((line, i) => doc.text(line, 24, 86 + i * 4.5));
+
+    // Card Pontos fortes (verde-oliva — usaremos cor do macaco como verde discreto)
+    const strengthsText = dom.strengths.slice(0, 5).join(' · ');
+    const sLines = doc.splitTextToSize(strengthsText, 162);
+    const sCardY = 72 + essH + 6;
+    const sH = Math.max(20, 10 + sLines.length * 4.5);
+    pdfRoundedCard(doc, 18, sCardY, 174, sH, PDF_COLORS.macaco);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('Pontos fortes', 24, sCardY + 8);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    sLines.forEach((line, i) => doc.text(line, 24, sCardY + 14 + i * 4.5));
+
+    // Card Pontos de atenção (vermelho)
+    const attText = dom.attention.slice(0, 4).join(' · ');
+    const aLines = doc.splitTextToSize(attText, 162);
+    const aCardY = sCardY + sH + 6;
+    const aH = Math.max(20, 10 + aLines.length * 4.5);
+    pdfRoundedCard(doc, 18, aCardY, 174, aH, PDF_COLORS.barAttention);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('Pontos de atenção', 24, aCardY + 8);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    aLines.forEach((line, i) => doc.text(line, 24, aCardY + 14 + i * 4.5));
+
+    pdfPageFooter(doc, '03');
+
+    // =============== PÁGINA 4 — COMBINAÇÃO ===============
+    doc.addPage();
+    pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
+    pdfPageHeader(doc, sec.name.toUpperCase() + ' · SECUNDÁRIO', 'A Combinação');
+
+    pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
+    doc.text('03', 18, 48);
+    pdfSetText(doc, PDF_COLORS.text, 22, 'bold');
+    // comboTitle pode ser longo — limitar a uma linha + reduzir font se >32
+    const ctSize = comboTitle.length > 32 ? 18 : 22;
+    pdfSetText(doc, PDF_COLORS.text, ctSize, 'bold');
+    doc.text(comboTitle, 18, 58);
+
+    // Swatches + label
+    const domRgb = hexToRgb(dom.color);
+    const secRgb = hexToRgb(sec.color);
+    doc.setFillColor(domRgb[0], domRgb[1], domRgb[2]);
+    doc.rect(18, 62, 4, 4, 'F');
+    doc.setFillColor(secRgb[0], secRgb[1], secRgb[2]);
+    doc.rect(24, 62, 4, 4, 'F');
+    pdfSetText(doc, PDF_COLORS.text3, 11, 'normal');
+    doc.text(dom.name + ' (' + r.dominant.percentage + '%) + ' + sec.name + ' (' + r.secondary.percentage + '%)', 32, 65.5);
+
+    // Card azul: "O X modula o seu Y"
+    const ceLines = doc.splitTextToSize(comboEssence, 162);
+    const ceH = Math.max(22, 14 + ceLines.length * 4.5);
+    pdfRoundedCard(doc, 18, 72, 174, ceH, PDF_COLORS.pavao);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('O ' + sec.name + ' modula o seu ' + dom.name, 24, 80);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    ceLines.forEach((line, i) => doc.text(line, 24, 86 + i * 4.5));
+
+    // Card vermelho: risco
+    const crLines = doc.splitTextToSize(comboRisk, 162);
+    const crY = 72 + ceH + 6;
+    const crH = Math.max(22, 14 + crLines.length * 4.5);
+    pdfRoundedCard(doc, 18, crY, 174, crH, PDF_COLORS.barAttention);
+    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+    doc.text('O risco específico dessa combinação', 24, crY + 8);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    crLines.forEach((line, i) => doc.text(line, 24, crY + 14 + i * 4.5));
+
+    // Quote em itálico (com linhas top/bottom)
+    const qY = crY + crH + 10;
+    doc.setDrawColor(PDF_COLORS.divider[0], PDF_COLORS.divider[1], PDF_COLORS.divider[2]);
+    doc.setLineWidth(0.2);
+    doc.line(18, qY, 192, qY);
+    pdfSetText(doc, PDF_COLORS.bronze, 12, 'italic');
+    const qLines = doc.splitTextToSize('"' + comboPhrase + '"', 162);
+    qLines.forEach((line, i) => doc.text(line, 105, qY + 7 + i * 5.5, { align: 'center' }));
+    const qBottomY = qY + 7 + qLines.length * 5.5 + 2;
+    doc.line(18, qBottomY, 192, qBottomY);
+
+    pdfPageFooter(doc, '04');
+
+    // =============== PÁGINA 5 — UPGRADE ===============
+    doc.addPage();
+    pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
+    pdfPageHeader(doc, 'UPGRADE', 'Vai mais fundo');
+
+    pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
+    doc.text('04', 18, 48);
+    pdfSetText(doc, PDF_COLORS.text, 22, 'bold');
+    doc.text('O que o Completo revela', 18, 58);
+    pdfSetText(doc, PDF_COLORS.text3, 11, 'normal');
+    doc.text('O Enxuto mostra o perfil. O Completo mostra o funcionamento.', 18, 65);
+
+    const bullets = [
+      ['IECR', ' — Índice de Esforço Cognitivo Relacional: como você se relaciona com cada perfil'],
+      ['Como você ', 'compra, vende e negocia'],
+      ['Como você ', 'lidera, é liderado e atua como parceiro'],
+      ['Mapa de comunicação', ' personalizado com cada perfil'],
+      ['Plano de desenvolvimento', ' aplicado ao seu perfil'],
+      ['Análise dos 4 percentuais', ' com texto aprofundado']
+    ];
+    let bY = 78;
+    bullets.forEach((b, i) => {
+      doc.setFillColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+      doc.circle(22, bY - 1.2, 1.6, 'F');
+      pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
+      doc.text(b[0], 28, bY);
+      const labW = doc.getTextWidth(b[0]);
+      pdfSetText(doc, PDF_COLORS.text, 11, 'normal');
+      doc.text(b[1], 28 + labW, bY);
+      // Linha de separação
+      if (i < bullets.length - 1) {
+        doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+        doc.setLineWidth(0.15);
+        doc.line(28, bY + 4.5, 188, bY + 4.5);
+      }
+      bY += 11;
+    });
+
+    // CTA box
+    const ctaY = bY + 10;
+    const ctaH = 44;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(18, ctaY, 174, ctaH, 3, 3, 'FD');
+    doc.setFillColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+    doc.rect(18, ctaY, 174, 1.4, 'F');
+    pdfSetText(doc, PDF_COLORS.text, 14, 'bold');
+    doc.text('Relatório Completo MINDCODE', 24, ctaY + 9);
+    pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
+    const ctaText = 'Análise aprofundada para comportamento, decisão, performance, vendas e liderança. 25 páginas estruturadas a partir do seu resultado individual.';
+    pdfWrappedText(doc, ctaText, 24, ctaY + 15, 162, 4.5);
+    pdfSetText(doc, PDF_COLORS.bronze, 22, 'bold');
+    doc.text('R$ 299,90', 24, ctaY + 34);
+    pdfSetText(doc, PDF_COLORS.text3, 10, 'normal');
+    doc.text('ou 12× de R$ 29,90 sem juros', 24, ctaY + 40);
+
+    pdfPageFooter(doc, '05');
+
+    return doc;
+  }
+
+  async function generatePdf() {
+    const doc = await buildPdfDoc();
+    return doc.output('blob');
   }
 
   
