@@ -2385,7 +2385,7 @@ const App = (function() {
     pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
     doc.text('Avaliado', evX + 6, evY + 8);
     pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
-    doc.text(state.contact.name || '—', evX + 6, evY + 16);
+    doc.text((state.contact.name || '—').replace(/\b\w/g, ch => ch.toUpperCase()), evX + 6, evY + 16);
     doc.text('Perfil: ' + dom.name + ' + ' + sec.name, evX + 6, evY + 22);
     doc.text(today, evX + 6, evY + 28);
 
@@ -2684,7 +2684,7 @@ const App = (function() {
 
     // Blocos inferiores em cards, não soltos na página.
     if (opts.application !== false && opts.methodology !== false) {
-      const boxY = Math.min(Math.max(y + 2, 174), 204);
+      const boxY = y + 8;
       const boxW = 84;
       const boxH = 58;
       const gap = 6;
@@ -2714,7 +2714,7 @@ const App = (function() {
   // Renderiza num canvas off-screen e adiciona como imagem (mais seguro que primitivas
   // raras do jsPDF — evita streams PDF malformados em alguns viewers).
   function drawRadar(doc, cx, cy, size, dom, sec, r) {
-    const px = 600;            // canvas em alta resolução
+    const px = 800;            // canvas em alta resolução
     const canvas = document.createElement('canvas');
     canvas.width = px; canvas.height = px;
     const ctx = canvas.getContext('2d');
@@ -2724,9 +2724,9 @@ const App = (function() {
     const radius = px * 0.32;
     const axes = [
       { label: 'Velocidade', dx: 0, dy: -1, anchor: 'center', baseline: 'bottom', offX: 0, offY: -26 },
-      { label: 'Resultado',  dx: 1, dy: 0,  anchor: 'center', baseline: 'middle', offX: 54, offY: 0 },
+      { label: 'Resultado',  dx: 1, dy: 0,  anchor: 'center', baseline: 'middle', offX: 72, offY: 0 },
       { label: 'Vínculo',    dx: 0, dy: 1,  anchor: 'center', baseline: 'top',    offX: 0, offY: 26 },
-      { label: 'Novidade',   dx: -1, dy: 0, anchor: 'center', baseline: 'middle', offX: -54, offY: 0 }
+      { label: 'Novidade',   dx: -1, dy: 0, anchor: 'center', baseline: 'middle', offX: -72, offY: 0 }
     ];
     // Anéis concêntricos
     ctx.strokeStyle = '#EDEAE2';
@@ -2840,7 +2840,7 @@ const App = (function() {
     pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
     doc.text('Avaliado', evX + 6, evY + 8);
     pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
-    doc.text(state.contact.name || '—', evX + 6, evY + 16);
+    doc.text((state.contact.name || '—').replace(/\b\w/g, ch => ch.toUpperCase()), evX + 6, evY + 16);
     doc.text('Perfil: ' + dom.name + ' + ' + sec.name, evX + 6, evY + 22);
     doc.text(today, evX + 6, evY + 28);
     pdfSetText(doc, PDF_COLORS.mute, 7, 'normal');
