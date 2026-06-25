@@ -562,7 +562,7 @@ const MINDCODE_CORE = {
       A: { profile: 'pavao',    text: 'Me dê liberdade' },
       B: { profile: 'cachorro', text: 'Seja amigável, carinhoso e compreensivo' },
       C: { profile: 'macaco',   text: 'Não descumpra o que combinar comigo' },
-      D: { profile: 'leao',     text: 'Seja objetivo, respeite meu tempo e venha preparado' } } },
+      D: { profile: 'leao',     text: 'Faça o que eu digo ou saia do caminho' } } },
     { id: 4, text: 'Minha filosofia de vida é...', options: {
       A: { profile: 'pavao',    text: 'Para ganhar, tem de inventar novas regras' },
       B: { profile: 'cachorro', text: 'Para eu ganhar, ninguém precisa perder' },
@@ -579,7 +579,7 @@ const MINDCODE_CORE = {
       C: { profile: 'macaco',   text: 'Na hora' },
       D: { profile: 'leao',     text: 'Na frente' } } },
     { id: 7, text: 'Eu gosto de...', options: {
-      A: { profile: 'pavao',    text: 'Provocar novas formas de pensar' },
+      A: { profile: 'pavao',    text: 'Tornar as pessoas desconfortáveis' },
       B: { profile: 'cachorro', text: 'Construir memórias' },
       C: { profile: 'macaco',   text: 'Fazer sentido' },
       D: { profile: 'leao',     text: 'Fazer progresso' } } },
@@ -622,7 +622,7 @@ const MINDCODE_CORE = {
       A: { profile: 'pavao',    text: 'Analiso diversas possibilidades' },
       B: { profile: 'cachorro', text: 'Busco indicação de amigos e familiares' },
       C: { profile: 'macaco',   text: 'Analiso cada detalhe antes de escolher' },
-      D: { profile: 'leao',     text: 'Decido rápido quando vejo vantagem clara' } } },
+      D: { profile: 'leao',     text: 'Escolho rápido e gasto pouco' } } },
     { id: 16, text: 'Bons resultados dependem de...', options: {
       A: { profile: 'pavao',    text: 'Inovação' },
       B: { profile: 'cachorro', text: 'Pessoas' },
@@ -647,7 +647,7 @@ const MINDCODE_CORE = {
       A: { profile: 'pavao',    text: 'Não é fácil seguir regras' },
       B: { profile: 'cachorro', text: 'Duas cabeças pensam melhor que uma' },
       C: { profile: 'macaco',   text: 'É preferível olhar, antes de pular' },
-      D: { profile: 'leao',     text: 'Quem quer competir precisa estar preparado' } } }
+      D: { profile: 'leao',     text: 'Se você não tem condições de competir, não compita' } } }
   ],
 
   /* ---------------- PRODUTOS E PREÇOS ----------------
