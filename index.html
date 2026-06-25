@@ -2642,8 +2642,10 @@ const App = (function() {
   // GERAÇÃO DO RELATÓRIO COMPLETO (25 páginas, jsPDF)
   // =====================================================================
 
-  // Padrão usado nas seções 01–24: número grande em bronze + título + "Leitura
-  // principal" em card bronze + duas caixas inferiores (Aplicação prática + Atenção metodológica).
+  // Padrão usado nas seções 01-24.
+  // V6: layout mais estável para PDF: card principal maior, duas caixas inferiores
+  // com borda e alturas controladas. Evita páginas com conteúdo comprimido no topo
+  // e grandes vazios no meio da página.
   function addCompletoSectionPage(doc, ctx, opts) {
     pdfFillRect(doc, 0, 0, 210, 297, PDF_COLORS.bg);
     pdfPageHeader(doc, opts.tag || 'RELATÓRIO COMPLETO', opts.title);
@@ -2651,45 +2653,58 @@ const App = (function() {
     // Numeração da seção
     pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
     doc.text(opts.sectionNum, 18, 48);
-    // Título grande
-    pdfSetText(doc, PDF_COLORS.text, 22, 'bold');
-    doc.text(opts.heading, 18, 58);
+
+    // Título grande com quebra defensiva
+    pdfSetText(doc, PDF_COLORS.text, opts.heading && opts.heading.length > 30 ? 19 : 22, 'bold');
+    const headingLines = doc.splitTextToSize(opts.heading || '', 160);
+    headingLines.slice(0, 2).forEach((line, i) => doc.text(line, 18, 58 + i * 8));
+
+    let y = 68 + Math.max(0, headingLines.length - 1) * 8;
     if (opts.subheading) {
-      pdfSetText(doc, PDF_COLORS.text3, 11, 'normal');
-      doc.text(opts.subheading, 18, 65);
+      pdfSetText(doc, PDF_COLORS.text3, 10.5, 'normal');
+      const subLines = doc.splitTextToSize(opts.subheading, 162);
+      subLines.slice(0, 2).forEach((line, i) => doc.text(line, 18, y + i * 5));
+      y += Math.min(subLines.length, 2) * 5 + 4;
     }
 
-    let y = opts.subheading ? 74 : 68;
-
-    // Card "Leitura principal" (bronze)
-    const mainLines = doc.splitTextToSize(opts.mainText, 162);
-    const mainH = Math.max(22, 12 + mainLines.length * 5);
+    // Card principal
+    const mainLines = doc.splitTextToSize(opts.mainText || '', 154);
+    const mainH = Math.min(100, Math.max(64, 22 + mainLines.length * 5));
     pdfRoundedCard(doc, 18, y, 174, mainH, PDF_COLORS.bronze);
-    pdfSetText(doc, PDF_COLORS.text, 11, 'bold');
-    doc.text('Leitura principal', 24, y + 8);
+    pdfSetText(doc, PDF_COLORS.text, 12, 'bold');
+    doc.text('Leitura principal', 24, y + 10);
     pdfSetText(doc, PDF_COLORS.text2, 10.5, 'normal');
-    mainLines.forEach((line, i) => doc.text(line, 24, y + 15 + i * 5));
-    y += mainH + 8;
+    mainLines.slice(0, 14).forEach((line, i) => doc.text(line, 24, y + 18 + i * 5));
+    y += mainH + 10;
 
-    // Conteúdo extra opcional (callback) — quando a seção precisa de algo diferente
+    // Conteúdo extra opcional
     if (opts.extraRender) {
       y = opts.extraRender(doc, y) || y;
     }
 
-    // Bloco inferior: Aplicação prática + Atenção metodológica (duas colunas)
+    // Blocos inferiores em cards, não soltos na página.
     if (opts.application !== false && opts.methodology !== false) {
-      const colW = 84;
-      const bottomY = Math.max(y + 4, 230);
-      // Aplicação prática
-      pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
-      doc.text('Aplicação prática', 18, bottomY);
-      pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
-      pdfWrappedText(doc, opts.application || 'Use esta leitura para ajustar comunicação, decisão e abordagem em situações profissionais. O valor do relatório está na aplicação consciente, não no rótulo.', 18, bottomY + 6, colW, 4.6);
-      // Atenção metodológica
-      pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
-      doc.text('Atenção metodológica', 108, bottomY);
-      pdfSetText(doc, PDF_COLORS.text2, 10, 'normal');
-      pdfWrappedText(doc, opts.methodology || 'O resultado indica tendência de autorrelato. Contexto, maturidade, experiência e pressão podem alterar a manifestação do perfil.', 108, bottomY + 6, colW, 4.6);
+      const boxY = Math.min(Math.max(y + 2, 174), 204);
+      const boxW = 84;
+      const boxH = 58;
+      const gap = 6;
+
+      function bottomBox(x, title, text) {
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(PDF_COLORS.border[0], PDF_COLORS.border[1], PDF_COLORS.border[2]);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(x, boxY, boxW, boxH, 3, 3, 'FD');
+        doc.setFillColor(PDF_COLORS.bronze[0], PDF_COLORS.bronze[1], PDF_COLORS.bronze[2]);
+        doc.rect(x, boxY, boxW, 1.2, 'F');
+        pdfSetText(doc, PDF_COLORS.bronze, 9, 'bold');
+        doc.text(title, x + 5, boxY + 9);
+        pdfSetText(doc, PDF_COLORS.text2, 9.2, 'normal');
+        const lines = doc.splitTextToSize(text || '', boxW - 10);
+        lines.slice(0, 8).forEach((line, i) => doc.text(line, x + 5, boxY + 16 + i * 4.5));
+      }
+
+      bottomBox(18, 'Aplicação prática', opts.application || 'Use esta leitura para ajustar comunicação, decisão e abordagem em situações profissionais. O valor do relatório está na aplicação consciente, não no rótulo.');
+      bottomBox(18 + boxW + gap, 'Atenção metodológica', opts.methodology || 'O resultado indica tendência de autorrelato. Contexto, maturidade, experiência e pressão podem alterar a manifestação do perfil.');
     }
 
     pdfPageFooter(doc, opts.pageLabel, 'Completo');
@@ -2704,12 +2719,14 @@ const App = (function() {
     canvas.width = px; canvas.height = px;
     const ctx = canvas.getContext('2d');
     const ccx = px / 2, ccy = px / 2;
-    const radius = px * 0.42;
+    // Raio menor + labels centralizados nas laterais.
+    // Corrige corte de palavras como "Resultado" e "Novidade" no PDF.
+    const radius = px * 0.32;
     const axes = [
-      { label: 'Velocidade', dx: 0, dy: -1, anchor: 'center', baseline: 'bottom', offX: 0, offY: -16 },
-      { label: 'Resultado',  dx: 1, dy: 0,  anchor: 'left',   baseline: 'middle', offX: 16, offY: 0 },
-      { label: 'Vínculo',    dx: 0, dy: 1,  anchor: 'center', baseline: 'top',    offX: 0, offY: 16 },
-      { label: 'Novidade',   dx: -1, dy: 0, anchor: 'right',  baseline: 'middle', offX: -16, offY: 0 }
+      { label: 'Velocidade', dx: 0, dy: -1, anchor: 'center', baseline: 'bottom', offX: 0, offY: -26 },
+      { label: 'Resultado',  dx: 1, dy: 0,  anchor: 'center', baseline: 'middle', offX: 54, offY: 0 },
+      { label: 'Vínculo',    dx: 0, dy: 1,  anchor: 'center', baseline: 'top',    offX: 0, offY: 26 },
+      { label: 'Novidade',   dx: -1, dy: 0, anchor: 'center', baseline: 'middle', offX: -54, offY: 0 }
     ];
     // Anéis concêntricos
     ctx.strokeStyle = '#EDEAE2';
@@ -2769,9 +2786,12 @@ const App = (function() {
     const domDet = PROFILES_DETAIL[r.dominant.profile];
     const secDet = PROFILES_DETAIL[r.secondary.profile];
     const today = new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-    const comboKey = r.dominant.profile + '+' + r.secondary.profile;
-    const combo = COMBINATIONS[comboKey];
-    const comboDet = HYBRIDS_DETAIL[comboKey] || { potential: '', development: '' };
+    // Usa combinação híbrida somente quando o cálculo ativou a regra de híbrido.
+    // Evita resultado incoerente tipo Pavão 100% + Leão 0% ser tratado como híbrido.
+    const hasActiveCombo = !!(r.comboKey && r.combo);
+    const comboKey = hasActiveCombo ? r.comboKey : null;
+    const combo = hasActiveCombo ? COMBINATIONS[comboKey] : null;
+    const comboDet = hasActiveCombo ? (HYBRIDS_DETAIL[comboKey] || { potential: '', development: '' }) : { potential: '', development: '' };
     const comboTitle = combo ? combo.name : (dom.name + ' Predominante');
 
     // =============== CAPA ===============
