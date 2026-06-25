@@ -690,9 +690,28 @@ html, body {
 <div class="app-container">
 
 <!-- ============================================================ -->
+<!-- TELA 0: SENHA                                                 -->
+<!-- ============================================================ -->
+<section class="screen active" id="senha">
+  <div class="capture-card" style="margin: auto;">
+    <div class="capture-tag">ACESSO RESTRITO</div>
+    <div class="capture-title">Digite o código de acesso</div>
+    <div class="capture-sub">Insira o código recebido para iniciar sua análise.</div>
+    <div class="field" id="field-senha">
+      <label>Código de acesso</label>
+      <input type="password" id="input-senha" placeholder="••••••" autocomplete="off">
+      <div class="field-error">Código inválido. Verifique e tente novamente.</div>
+    </div>
+    <button class="btn-primary capture-submit" onclick="App.checkSenha()">
+      Acessar
+    </button>
+  </div>
+</section>
+
+<!-- ============================================================ -->
 <!-- TELA 1: WELCOME                                                -->
 <!-- ============================================================ -->
-<section class="screen active" id="welcome">
+<section class="screen" id="welcome">
   <div class="welcome-grid">
     <div class="welcome-left">
       <div class="welcome-brand">
@@ -778,7 +797,27 @@ html, body {
       <div class="field-error">Por favor, preencha seu WhatsApp.</div>
     </div>
     
-    <button class="btn-primary capture-submit" onclick="App.submitCapture()">
+    <div class="field" id="field-cidade">
+      <label>Cidade</label>
+      <input type="text" id="input-cidade" placeholder="Sua cidade" required>
+      <div class="field-error">Por favor, preencha sua cidade.</div>
+    </div>
+
+    <div class="field" id="field-estado">
+      <label>Estado (UF)</label>
+      <input type="text" id="input-estado" placeholder="RS" maxlength="2" style="text-transform:uppercase;" required>
+      <div class="field-error">Por favor, preencha o estado.</div>
+    </div>
+
+    
+    <div class="field" id="field-cpf">
+      <label>CPF</label>
+      <input type="text" id="input-cpf" placeholder="000.000.000-00" maxlength="14" required>
+      <div class="field-error">Por favor, preencha o CPF.</div>
+    </div>
+
+    
+    <button class="btn-primary capture-submit" onclick="App.submitCapture();">
       Gerar meu relatório
     </button>
     
@@ -1497,6 +1536,19 @@ const App = (function() {
     
     // Máscara de WhatsApp
     const wppInput = document.getElementById('input-whatsapp');
+    // Máscara CPF
+    const cpfInput = document.getElementById('input-cpf');
+    if (cpfInput) {
+      cpfInput.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.slice(0, 11);
+        if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4');
+        else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+        else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+        e.target.value = v;
+      });
+    }
+
     wppInput.addEventListener('input', function(e) {
       let v = e.target.value.replace(/\D/g, '');
       if (v.length > 11) v = v.slice(0, 11);
@@ -1569,6 +1621,9 @@ const App = (function() {
     const name = document.getElementById('input-name').value.trim();
     const email = document.getElementById('input-email').value.trim();
     const whatsapp = document.getElementById('input-whatsapp').value.trim();
+    const cidade = document.getElementById('input-cidade').value.trim();
+    const estado = document.getElementById('input-estado').value.trim().toUpperCase();
+    const cpf = document.getElementById('input-cpf').value.trim();
     
     let hasError = false;
     
@@ -1592,10 +1647,31 @@ const App = (function() {
     } else {
       document.getElementById('field-whatsapp').classList.remove('error');
     }
-    
+
+    if (!cidade || cidade.length < 2) {
+      document.getElementById('field-cidade').classList.add('error');
+      hasError = true;
+    } else {
+      document.getElementById('field-cidade').classList.remove('error');
+    }
+
+    if (!estado || estado.length < 2) {
+      document.getElementById('field-estado').classList.add('error');
+      hasError = true;
+    } else {
+      document.getElementById('field-estado').classList.remove('error');
+    }
+
+    if (!cpf || cpf.replace(/\D/g, '').length < 11) {
+      document.getElementById('field-cpf').classList.add('error');
+      hasError = true;
+    } else {
+      document.getElementById('field-cpf').classList.remove('error');
+    }
+
     if (hasError) return;
     
-    state.contact = { name, email, whatsapp };
+    state.contact = { name, email, whatsapp, cidade, estado, cpf };
     
     showScreen('loading');
     processResult();
@@ -3243,7 +3319,10 @@ const App = (function() {
         nome: state.contact.name,
         email: state.contact.email,
         whatsapp: state.contact.whatsapp,
-        mensagem: ''
+        mensagem: '',
+        cidade: state.contact.cidade || '',
+        estado: state.contact.estado || '',
+        cpf: state.contact.cpf || ''
       },
       dominante: {
         nome: dom.name,
@@ -3331,6 +3410,24 @@ const App = (function() {
   }
 
   // ---------- API PÚBLICA ----------
+  function checkSenha() {
+    const val = document.getElementById('input-senha').value.trim();
+    if (val === '901088') {
+      document.getElementById('field-senha').classList.remove('error');
+      showScreen('welcome');
+    } else {
+      document.getElementById('field-senha').classList.add('error');
+    }
+  }
+
+  // Enter na senha
+  document.addEventListener('DOMContentLoaded', function() {
+    const inp = document.getElementById('input-senha');
+    if (inp) inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') App.checkSenha();
+    });
+  });
+
   return {
     init,
     start,
@@ -3338,7 +3435,8 @@ const App = (function() {
     submitCapture,
     downloadEnxuto,
     downloadCompleto,
-    requestCompleto
+    requestCompleto,
+    checkSenha
   };
 })();
 
