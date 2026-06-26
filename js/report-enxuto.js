@@ -1,9 +1,9 @@
 /* ============================================================
-   MINDCODE — Relatório Enxuto (V1)
+   MINDCODE — Relatório Enxuto (V2 - Melhorado)
    ------------------------------------------------------------
-   Gera o relatorio de 3-5 paginas como documento printavel.
-   O usuario salva como PDF pela caixa de impressao do navegador.
-   Tema claro (proprio para impressao), independente do site.
+   Gera o relatorio de 5 paginas com melhor formatação visual.
+   Melhorias: fonts externas, layout refinado, suporte a impressão
+   otimizado, imagens de melhor qualidade.
 
    API:  window.MindcodeReportEnxuto.generate(reportData)
    reportData vem de MindcodeEngine.buildReportData(user, result, 'enxuto')
@@ -39,102 +39,110 @@
     return null;
   }
 
-  /* ---------- estilos do relatorio ---------- */
+  /* ---------- estilos do relatorio (VERSÃO 2 MELHORADA) ---------- */
   var STYLE = '' +
+  '@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap");' +
   '#mc-report{position:fixed;inset:0;z-index:9999;display:none;' +
-    'background:#101013;overflow:auto;-webkit-overflow-scrolling:touch}' +
+    'background:#0a0a0e;overflow:auto;-webkit-overflow-scrolling:touch;font-family:"Hanken Grotesk",system-ui,sans-serif}' +
   '#mc-report.open{display:block}' +
   '.mc-bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;' +
-    'justify-content:flex-end;padding:13px 16px;' +
-    'background:rgba(16,16,19,.92);backdrop-filter:blur(6px);' +
-    'border-bottom:1px solid rgba(255,255,255,.08)}' +
+    'justify-content:flex-end;padding:16px 24px;' +
+    'background:rgba(10,10,14,.96);backdrop-filter:blur(8px);' +
+    'border-bottom:1px solid rgba(255,255,255,.1);box-shadow:0 4px 12px rgba(0,0,0,.3)}' +
   '.mc-bar button{font-family:"Hanken Grotesk",system-ui,sans-serif;' +
-    'font-weight:600;font-size:14px;cursor:pointer;border-radius:999px;' +
-    'padding:11px 22px;border:1px solid rgba(255,255,255,.18);transition:.18s}' +
-  '.mc-bar .save{background:#C0915C;color:#1a140c;border-color:#C0915C}' +
-  '.mc-bar .save:hover{filter:brightness(1.07)}' +
-  '.mc-bar .close{background:transparent;color:#e9e6df}' +
-  '.mc-bar .close:hover{border-color:#C0915C;color:#C0915C}' +
-  '.mc-pages{padding:24px 14px 60px}' +
+    'font-weight:600;font-size:14px;cursor:pointer;border-radius:8px;' +
+    'padding:12px 24px;border:1px solid rgba(255,255,255,.2);transition:.2s;' +
+    'box-shadow:0 2px 8px rgba(0,0,0,.15)}' +
+  '.mc-bar .save{background:#D4A574;color:#1a140c;border-color:#D4A574;font-weight:700}' +
+  '.mc-bar .save:hover{background:#E0B585;filter:brightness(1.08);box-shadow:0 4px 12px rgba(212,165,116,.3)}' +
+  '.mc-bar .close{background:rgba(255,255,255,.08);color:#e9e6df}' +
+  '.mc-bar .close:hover{background:rgba(212,165,116,.2);border-color:#D4A574;color:#D4A574;box-shadow:0 4px 12px rgba(212,165,116,.2)}' +
+  '.mc-pages{padding:32px 20px 80px;background:#0a0a0e}' +
   /* pagina */
-  '.mc-page{background:#FBF9F4;color:#26241F;width:100%;max-width:680px;' +
-    'margin:0 auto 22px;border-radius:6px;overflow:hidden;' +
-    'font-family:"Hanken Grotesk",system-ui,sans-serif;line-height:1.6;' +
-    'box-shadow:0 16px 50px -16px rgba(0,0,0,.6);' +
-    'display:flex;flex-direction:column;position:relative}' +
-  '.mc-pad{padding:46px 48px;flex:1;display:flex;flex-direction:column}' +
-  '.mc-foot{border-top:1px solid #E3DECF;padding:14px 48px;' +
+  '.mc-page{background:#FFFBF5;color:#26241F;width:100%;max-width:700px;' +
+    'margin:0 auto 28px;border-radius:8px;overflow:hidden;' +
+    'font-family:"Hanken Grotesk",system-ui,sans-serif;line-height:1.65;' +
+    'box-shadow:0 12px 40px rgba(0,0,0,.25),0 2px 8px rgba(0,0,0,.1);' +
+    'display:flex;flex-direction:column;position:relative;' +
+    'page-break-after:always}' +
+  '.mc-page:last-child{page-break-after:auto}' +
+  '.mc-pad{padding:52px 52px;flex:1;display:flex;flex-direction:column}' +
+  '.mc-foot{border-top:1px solid #E8DFD0;padding:18px 52px;' +
     'display:flex;justify-content:space-between;font-size:10px;' +
-    'letter-spacing:.12em;text-transform:uppercase;color:#A8A293}' +
+    'letter-spacing:.12em;text-transform:uppercase;color:#B5A695;background:#FEFDF8}' +
   /* tipografia do relatorio */
-  '.mc-brand{display:flex;align-items:center;gap:8px;font-weight:700;' +
-    'letter-spacing:.32em;font-size:12px;color:#26241F}' +
-  '.mc-brand .d{width:6px;height:6px;border-radius:50%;background:#A8763F}' +
-  '.mc-brand span{color:#A8763F}' +
+  '.mc-brand{display:flex;align-items:center;gap:10px;font-weight:700;' +
+    'letter-spacing:.32em;font-size:13px;color:#26241F;text-transform:uppercase}' +
+  '.mc-brand .d{width:7px;height:7px;border-radius:50%;background:#C9956B}' +
+  '.mc-brand span{color:#C9956B;font-style:italic}' +
   '.mc-eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;' +
-    'color:#A8763F;font-weight:700}' +
-  '.mc-h1{font-family:"Fraunces",Georgia,serif;font-weight:500;' +
-    'font-size:38px;line-height:1.12;letter-spacing:-.01em;color:#211F1A}' +
-  '.mc-h2{font-family:"Fraunces",Georgia,serif;font-weight:500;' +
-    'font-size:25px;line-height:1.18;color:#211F1A}' +
+    'color:#C9956B;font-weight:700;margin-bottom:14px}' +
+  '.mc-h1{font-family:"Fraunces",Georgia,serif;font-weight:600;' +
+    'font-size:42px;line-height:1.15;letter-spacing:-.02em;color:#1a140c;margin:0}' +
+  '.mc-h2{font-family:"Fraunces",Georgia,serif;font-weight:600;' +
+    'font-size:28px;line-height:1.2;color:#1a140c;margin:0 0 8px}' +
   '.mc-sig{font-family:"Fraunces",Georgia,serif;font-style:italic;' +
-    'font-size:15px;color:#A8763F}' +
-  '.mc-p{font-size:14px;color:#4A463E}' +
-  '.mc-mut{color:#8A8475;font-size:13px}' +
-  '.mc-rule{height:1px;background:#E3DECF;margin:20px 0}' +
+    'font-size:16px;color:#C9956B;margin-top:12px}' +
+  '.mc-p{font-size:15px;color:#4A463E;margin:0;line-height:1.68}' +
+  '.mc-mut{color:#8A8475;font-size:13.5px;line-height:1.6}' +
+  '.mc-rule{height:2px;background:linear-gradient(to right,#E8DFD0,transparent);margin:28px 0}' +
   /* capa */
   '.mc-cover{justify-content:space-between}' +
-  '.mc-cover-mid{display:flex;flex-direction:column;gap:14px;padding:30px 0}' +
-  '.mc-cover-combo{font-family:"Fraunces",Georgia,serif;font-weight:500;' +
-    'font-size:46px;line-height:1.08;color:#211F1A}' +
-  '.mc-cover-combo em{font-style:italic;color:#A8763F}' +
+  '.mc-cover-mid{display:flex;flex-direction:column;gap:18px;padding:40px 0}' +
+  '.mc-cover-combo{font-family:"Fraunces",Georgia,serif;font-weight:600;' +
+    'font-size:52px;line-height:1.1;color:#1a140c;text-transform:uppercase;letter-spacing:-.015em}' +
+  '.mc-cover-combo em{font-style:italic;color:#C9956B;font-weight:700}' +
+  '.mc-cover-sub{font-size:16px;color:#6B5D50;line-height:1.65}' +
   /* barras */
-  '.mc-bar-row{margin-bottom:17px}' +
+  '.mc-bar-row{margin-bottom:22px}' +
   '.mc-bar-top{display:flex;justify-content:space-between;align-items:baseline;' +
-    'margin-bottom:6px}' +
-  '.mc-bar-name{font-weight:700;font-size:14px;color:#26241F}' +
-  '.mc-bar-name small{color:#A8A293;font-weight:400;margin-left:8px;' +
-    'text-transform:uppercase;letter-spacing:.06em;font-size:10px}' +
-  '.mc-bar-pct{font-family:"Fraunces",Georgia,serif;font-size:18px;' +
-    'font-weight:500;color:#211F1A}' +
-  '.mc-track{height:10px;background:#EDE8DA;border-radius:999px;overflow:hidden}' +
-  '.mc-fill{height:100%;border-radius:999px}' +
+    'margin-bottom:10px}' +
+  '.mc-bar-name{font-weight:700;font-size:15px;color:#26241F;letter-spacing:.01em}' +
+  '.mc-bar-name small{color:#A8A293;font-weight:500;margin-left:12px;' +
+    'text-transform:uppercase;letter-spacing:.08em;font-size:10px}' +
+  '.mc-bar-pct{font-family:"Fraunces",Georgia,serif;font-size:20px;' +
+    'font-weight:600;color:#1a140c}' +
+  '.mc-track{height:12px;background:#EDE8DA;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.1)}' +
+  '.mc-fill{height:100%;border-radius:999px;transition:width .8s ease}' +
   /* blocos */
-  '.mc-tag{display:inline-block;font-size:10px;letter-spacing:.18em;' +
-    'text-transform:uppercase;font-weight:700;color:#A8763F;margin-bottom:9px}' +
-  '.mc-nucleus{font-size:11px;letter-spacing:.1em;text-transform:uppercase;' +
-    'color:#8A8475;margin:5px 0 14px}' +
-  '.mc-list{list-style:none;margin:10px 0;padding:0}' +
-  '.mc-list li{font-size:13.5px;color:#4A463E;padding:7px 0 7px 22px;' +
-    'position:relative;border-bottom:1px solid #EDE8DA}' +
+  '.mc-tag{display:inline-block;font-size:11px;letter-spacing:.2em;' +
+    'text-transform:uppercase;font-weight:700;color:#C9956B;margin-bottom:12px}' +
+  '.mc-nucleus{font-size:12px;letter-spacing:.12em;text-transform:uppercase;' +
+    'color:#8A8475;margin:8px 0 16px;font-weight:600}' +
+  '.mc-list{list-style:none;margin:12px 0;padding:0}' +
+  '.mc-list li{font-size:14.5px;color:#4A463E;padding:12px 0 12px 28px;' +
+    'position:relative;border-bottom:1px solid #F2EEE8;line-height:1.65}' +
   '.mc-list li:last-child{border-bottom:none}' +
-  '.mc-list li::before{content:"";position:absolute;left:2px;top:14px;' +
-    'width:7px;height:7px;border-radius:50%}' +
-  '.mc-list.good li::before{background:#7C9A92}' +
-  '.mc-list.warn li::before{background:#BC8160}' +
+  '.mc-list li::before{content:"";position:absolute;left:0;top:18px;' +
+    'width:8px;height:8px;border-radius:50%;background:#8A8F7A}' +
+  '.mc-list.good li::before{background:#7C9A92;box-shadow:0 0 6px rgba(124,154,146,.3)}' +
+  '.mc-list.warn li::before{background:#C9956B;box-shadow:0 0 6px rgba(201,149,107,.3)}' +
   '.mc-quote{font-family:"Fraunces",Georgia,serif;font-style:italic;' +
-    'font-size:21px;line-height:1.4;color:#211F1A;border-left:3px solid #A8763F;' +
-    'padding:6px 0 6px 22px;margin:8px 0}' +
-  '.mc-callout{background:#F2EEE2;border:1px solid #E3DECF;border-radius:10px;' +
-    'padding:20px 22px;margin-top:6px}' +
-  '.mc-callout .mc-h2{font-size:21px;margin-bottom:6px}' +
-  '.mc-price{font-family:"Fraunces",Georgia,serif;font-weight:500;' +
-    'font-size:30px;color:#211F1A;margin:6px 0 2px}' +
-  '.mc-price small{font-size:13px;color:#8A8475;font-family:"Hanken Grotesk",sans-serif}' +
-  '.mc-disc{font-size:10.5px;color:#A8A293;line-height:1.55;margin-top:14px}' +
+    'font-size:24px;line-height:1.45;color:#1a140c;border-left:4px solid #C9956B;' +
+    'padding:10px 0 10px 28px;margin:14px 0;font-weight:500}' +
+  '.mc-callout{background:#F8F5EF;border:2px solid #E8DFD0;border-radius:12px;' +
+    'padding:28px 32px;margin-top:14px;box-shadow:0 4px 12px rgba(0,0,0,.06)}' +
+  '.mc-callout .mc-h2{margin-bottom:10px}' +
+  '.mc-callout .mc-p{margin-bottom:12px}' +
+  '.mc-price{font-family:"Fraunces",Georgia,serif;font-weight:700;' +
+    'font-size:36px;color:#1a140c;margin:12px 0 4px;letter-spacing:-.01em}' +
+  '.mc-price small{font-size:13px;color:#8A8475;font-family:"Hanken Grotesk",sans-serif;font-weight:500}' +
+  '.mc-disc{font-size:11px;color:#A8A293;line-height:1.6;margin-top:16px}' +
   /* impressao */
   '@media print{' +
-    'body{background:#fff}' +
+    'body{background:#fff;margin:0;padding:0}' +
     'body>*{display:none!important}' +
-    '#mc-report{display:block!important;position:static;background:#fff;overflow:visible}' +
+    '#mc-report{display:block!important;position:static;background:#fff;overflow:visible;z-index:auto}' +
     '.mc-bar{display:none!important}' +
-    '.mc-pages{padding:0}' +
+    '.mc-pages{padding:0;background:#fff}' +
     '.mc-page{box-shadow:none;border-radius:0;margin:0;max-width:none;' +
-      'width:210mm;min-height:296mm}' +
-    '@page{size:A4;margin:0}' +
-    '.mc-page{page-break-after:always}' +
+      'width:210mm;height:297mm;page-break-after:always}' +
     '.mc-page:last-child{page-break-after:auto}' +
-    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.mc-pad{padding:40mm 20mm}' +
+    '.mc-foot{padding:15mm 20mm}' +
+    '@page{size:A4;margin:0}' +
+    '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}' +
+    'img{max-width:100%;height:auto}' +
   '}';
 
   /* ---------- monta a UI uma vez ---------- */
@@ -150,8 +158,8 @@
     ov.id = 'mc-report';
     ov.innerHTML =
       '<div class="mc-bar">' +
-        '<button class="close" id="mc-close">Fechar</button>' +
-        '<button class="save" id="mc-save">Salvar como PDF</button>' +
+        '<button class="close" id="mc-close">✕ Fechar</button>' +
+        '<button class="save" id="mc-save">⬇ Salvar como PDF</button>' +
       '</div>' +
       '<div class="mc-pages" id="mc-report-pages"></div>';
     document.body.appendChild(ov);
@@ -174,7 +182,7 @@
   function footer(rd, n) {
     return '<div class="mc-foot">' +
       '<span>MINDCODE · Relatório Enxuto</span>' +
-      '<span>' + esc(rd.user.name) + ' · ' + n + '/5</span></div>';
+      '<span>' + esc(rd.user.name) + ' · Página ' + n + '/5</span></div>';
   }
 
   function barsBlock(result) {
@@ -198,7 +206,7 @@
       '</ul>';
   }
 
-  /* ---------- as 5 paginas ---------- */
+  /* ---------- as 5 paginas (VERSÃO MELHORADA) ---------- */
   function buildReport(rd) {
     var r = rd.result;
     var special = getSpecial(r.flags);
@@ -215,49 +223,49 @@
     var p1 =
       '<div class="mc-page"><div class="mc-pad mc-cover">' +
         '<div>' + brandRow() +
-          '<div class="mc-sig" style="margin-top:8px">' +
-            esc(CORE.brand.signature) + '</div></div>' +
+          '<div class="mc-sig">Análise Comportamental Aplicada a Vendas</div></div>' +
         '<div class="mc-cover-mid">' +
-          '<div class="mc-eyebrow">Relatório Enxuto</div>' +
+          '<div class="mc-eyebrow">Seu Relatório Enxuto</div>' +
           '<div class="mc-cover-combo"><em>' + esc(identityTitle) + '</em></div>' +
-          '<div class="mc-mut">' + esc(identitySub) + '</div>' +
+          '<div class="mc-cover-sub">' + esc(identitySub) + '</div>' +
           '<div class="mc-rule"></div>' +
-          '<div class="mc-p"><b>Análise comportamental de ' +
-            esc(rd.user.name) + '</b></div>' +
+          '<div class="mc-p" style="font-weight:600;font-size:16px;margin-bottom:6px;">Análise de ' +
+            esc(rd.user.name) + '</div>' +
           '<div class="mc-mut">' + formatDate(rd.generatedAt) +
             (rd.user.role ? ' · ' + esc(rd.user.role) : '') + '</div>' +
         '</div>' +
-        '<div class="mc-mut" style="font-size:11px;letter-spacing:.06em">' +
-          'MINDCODE · Diego Winterhalter</div>' +
+        '<div class="mc-mut" style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-top:auto">' +
+          'MINDCODE · Diego Winterhalter · 2026</div>' +
       '</div></div>';
 
     /* --- PAGINA 2 — RESULTADO --- */
     var p2 =
       '<div class="mc-page"><div class="mc-pad">' +
         brandRow() +
-        '<div class="mc-eyebrow" style="margin-top:26px">Seu resultado</div>' +
-        '<h2 class="mc-h2" style="margin:6px 0 4px">Distribuição dos quatro perfis</h2>' +
-        '<p class="mc-mut" style="margin-bottom:22px">' +
-          'Cada perfil aparece num percentual. Juntos, eles formam o seu ' +
-          'padrão comportamental atual.</p>' +
+        '<div class="mc-eyebrow" style="margin-top:32px">Seu resultado</div>' +
+        '<h2 class="mc-h2">Distribuição dos quatro perfis</h2>' +
+        '<p class="mc-p" style="color:#6B5D50;margin-bottom:26px;line-height:1.65">' +
+          'Cada perfil aparece em um percentual diferente. Juntos, eles formam o seu ' +
+          'padrão comportamental único e atual.</p>' +
         barsBlock(r) +
         '<div class="mc-rule"></div>' +
-        '<p class="mc-p">Seu perfil dominante é o <b>' + esc(dom.name) +
-          '</b> (' + r.dominant.percentage + '%), em ' +
-          esc(r.dominant.intensity.label.toLowerCase()) + '. ' +
-          esc(r.dominant.intensity.note) + ' O perfil secundário é o <b>' +
-          esc(sec.name) + '</b> (' + r.secondary.percentage + '%).</p>' +
+        '<p class="mc-p"><strong>Seu perfil dominante é o ' + esc(dom.name) +
+          '</strong> (' + r.dominant.percentage + '%), em <strong>' +
+          esc(r.dominant.intensity.label.toLowerCase()) + '</strong>. ' +
+          '<span style="color:#6B5D50;">' + esc(r.dominant.intensity.note) + '</span> ' +
+          '<br><br>O perfil secundário é o <strong>' +
+          esc(sec.name) + '</strong> (' + r.secondary.percentage + '%).</p>' +
       '</div>' + footer(rd, 2) + '</div>';
 
     /* --- PAGINA 3 — PERFIL DOMINANTE + FORCAS --- */
     var p3 =
       '<div class="mc-page"><div class="mc-pad">' +
         brandRow() +
-        '<div style="margin-top:26px"><span class="mc-tag">Perfil dominante</span></div>' +
+        '<div style="margin-top:32px;"><span class="mc-tag">Perfil dominante</span></div>' +
         '<h1 class="mc-h1">' + esc(dom.name) + '</h1>' +
         '<div class="mc-nucleus">' + esc(dom.title) +
-          ' · núcleo: ' + esc(dom.nucleus) + '</div>' +
-        '<p class="mc-p">' + esc(dom.essence) + '</p>' +
+          ' · Núcleo: ' + esc(dom.nucleus) + '</div>' +
+        '<p class="mc-p" style="margin-bottom:24px;line-height:1.7">' + esc(dom.essence) + '</p>' +
         '<div class="mc-rule"></div>' +
         '<span class="mc-tag">Pontos fortes</span>' +
         listBlock(dom.strengths, 'good') +
@@ -267,47 +275,44 @@
     var p4 =
       '<div class="mc-page"><div class="mc-pad">' +
         brandRow() +
-        '<div style="margin-top:26px"><span class="mc-tag">Pontos de atenção</span></div>' +
-        '<h2 class="mc-h2" style="margin:4px 0 6px">' +
-          'Onde o ' + esc(dom.name) + ' pode te limitar</h2>' +
-        '<p class="mc-mut" style="margin-bottom:6px">' +
-          'Nenhum perfil é melhor que outro. Estes são os pontos a observar ' +
-          'quando o padrão age em excesso.</p>' +
+        '<div style="margin-top:32px;"><span class="mc-tag">Pontos de atenção</span></div>' +
+        '<h2 class="mc-h2">Onde o ' + esc(dom.name) + ' pode te limitar</h2>' +
+        '<p class="mc-mut" style="margin-bottom:22px;">' +
+          'Nenhum perfil é melhor que outro. Estes são os pontos que merecem sua atenção ' +
+          'quando o padrão atua em excesso.</p>' +
         listBlock(dom.attention, 'warn') +
         '<div class="mc-rule"></div>' +
-        '<span class="mc-tag">Frase de reflexão</span>' +
+        '<span class="mc-tag">Reflexão para você</span>' +
         '<div class="mc-quote">' + esc(dom.phrase) + '</div>' +
       '</div>' + footer(rd, 4) + '</div>';
 
     /* --- PAGINA 5 — SECUNDARIO + CTA --- */
     var modulText = r.combination
-      ? ('A combinação <b>' + esc(r.combination.name) + '</b> — ' +
+      ? ('A combinação <strong>' + esc(r.combination.name) + '</strong> — ' +
          esc(r.combination.essence) + ' — descreve como esses dois perfis ' +
          'operam juntos em você.')
       : (special
           ? esc(special.text)
-          : ('O ' + esc(sec.name) + ' modula a forma como o ' +
-             esc(dom.name) + ' se expressa no dia a dia.'));
+          : ('O <strong>' + esc(sec.name) + '</strong> modula a forma como o ' +
+             '<strong>' + esc(dom.name) + '</strong> se expressa no dia a dia.'));
 
     var c = rd.products.completo;
     var p5 =
       '<div class="mc-page"><div class="mc-pad">' +
         brandRow() +
-        '<div style="margin-top:26px"><span class="mc-tag">Perfil secundário</span></div>' +
+        '<div style="margin-top:32px;"><span class="mc-tag">Perfil secundário</span></div>' +
         '<h1 class="mc-h1">' + esc(sec.name) + '</h1>' +
         '<div class="mc-nucleus">' + esc(sec.title) +
-          ' · o modulador</div>' +
-        '<p class="mc-p">' + esc(sec.essence) + '</p>' +
-        '<p class="mc-p" style="margin-top:10px">' + modulText + '</p>' +
+          ' · O modulador</div>' +
+        '<p class="mc-p" style="margin-bottom:18px;line-height:1.7">' + esc(sec.essence) + '</p>' +
+        '<p class="mc-p" style="color:#6B5D50;line-height:1.7">' + modulText + '</p>' +
         '<div class="mc-rule"></div>' +
         '<div class="mc-callout">' +
           '<span class="mc-tag">Continue sua análise</span>' +
           '<h2 class="mc-h2">Relatório Completo</h2>' +
-          '<p class="mc-p">18 a 30 páginas com sua combinação híbrida ' +
-            'aprofundada, perfil emocional e de comunicação, como você compra, ' +
-            'vende, negocia e lidera, plano de desenvolvimento — e o <b>IECR, ' +
-            'o Índice de Esforço Cognitivo Relacional</b>, recurso exclusivo do ' +
-            'relatório completo.</p>' +
+          '<p class="mc-p">25 a 30 páginas com análise aprofundada da sua combinação híbrida, ' +
+            'perfil emocional, mapa de comunicação, como você compra, vende, negocia e lidera, ' +
+            'plano de desenvolvimento — e o <strong>IECR</strong>, índice exclusivo MINDCODE.</p>' +
           '<div class="mc-price">' + esc(c.priceLabel) +
             ' <small>ou ' + esc(c.installments) + '</small></div>' +
         '</div>' +
